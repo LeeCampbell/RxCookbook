@@ -11,6 +11,18 @@ The aim of these snippets is to allow you to use TibRv with Rx and to follow the
 TibRv basics
 ------------
 TibRv (the common abbreviation for TIBCO Rendevous) has two main usages that will be covered here. 
-First we will look at consuming Multicast messages. This is done by listening to a TibRv Subject (not to be confused with an Rx Subject).
-Second we will look at consuming Unicast message. TibRv does this with a sepcialisation of a TibRv Subject called an Inbox.
+First we will look at consuming Multicast messages. This is done by listening to a TibRv _Subject_ (not to be confused with an Rx `Subject`).
+Second we will look at consuming Unicast message. TibRv does this with a sepcialisation of a TibRv _Subject_ called an _Inbox_.
 
+So all a _Subject_ is really is a string that defines and Endpoint. Publishers will publish messages to a _Subject_ and consumers can listen to a specific _Subject_. 
+Example _Subjects_:
+ * dept.product.service.datatype
+ * Fx.Pricing.Spot.EURUSD
+ * users.login.notification
+ * EComm.orders.accepted
+
+A consumer will then need to know the _Subject_ that they want to subscribe to. A neat feature of TibRv is the ability to use wildcards when consuming events.
+For example these are valid strings to use to subscribe to a subject
+ * Fx.Pricing.Spot.EURUSD
+ * Fx.Pricing.Spot.*
+ * Fx.Pricing.*.EURUSD
