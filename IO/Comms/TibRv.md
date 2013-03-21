@@ -14,6 +14,7 @@ TibRv (the common abbreviation for TIBCO Rendevous) has two main usages that wil
 First we will look at consuming Multicast messages. This is done by listening to a TibRv _Subject_ (not to be confused with an Rx `Subject`).
 Second we will look at consuming Unicast message. TibRv does this with a sepcialisation of a TibRv _Subject_ called an _Inbox_.
 
+###Subjects
 So all a _Subject_ is really is a string that defines and Endpoint. Publishers will publish messages to a _Subject_ and consumers can listen to a specific _Subject_. 
 Example _Subjects_:
  * dept.product.service.datatype
@@ -26,3 +27,13 @@ For example these are valid strings to use to subscribe to a subject
  * Fx.Pricing.Spot.EURUSD
  * Fx.Pricing.Spot.*
  * Fx.Pricing.*.EURUSD
+ 
+In the first sample above, the consumer will receive any data that is published to the "Fx.Pricing.Spot.EURUSD" _Subject_. 
+These could be [Foreign Exchange Rates](http://en.wikipedia.org/wiki/Exchange_rate) for the Euro [currency](http://en.wikipedia.org/wiki/Currency) to the US Dollar currency (i.e. the EUR/USD [Currency Pair](http://en.wikipedia.org/wiki/Currency_pair)).
+
+In the second example, the consumer has subscribed to all _Subjects_ that start with "Fx.Pricing.Spot.". 
+In practice this could get us Foreign Exchange Rates for other currencies, perhaps Euro to Great British Pound (Fx.Pricing.Spot.EURGBP), or New Zealand Dollar to Japanese Yen (Fx.Pricing.Spot.NZDJPY).
+
+In the third example, the consumer will receive any data that is published to a _Subject_ that starts with "Fx.Pricing." and ends with "EURUSD".
+In practice this could get us Foreign Exchange Rates for the EUR/USD Currency Pair, but for other [Financial Instruments](http://en.wikipedia.org/wiki/Foreign_exchange_market#Financial_instruments), not just "SPOT".
+So we may receive "SPOT" data on the "Fx.Pricing.Spot.EURUSD" _Subject_, but we may also receive "Forward" rates on _Subjects_ like "Fx.Pricing.1W.EURUSD" for "1 Week Forward" data.
