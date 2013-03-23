@@ -11,49 +11,46 @@ As this interface can be found in the `System.dll` it is available for all .NET 
 First we can start with an exmple that implements `INotifyPropertyChanged`.
 
 
-  	public class Person : INotifyPropertyChanged
-		{
-			string _name;
-			int _age;
-			
-			public string Name
-			{
-				get { return _name; }
-				set 
-				{ 
-					if(_name !=value)
-					{
-						_name = value; 
-						OnPropertyChanged("Name");
-					}
-				}
-			}
-			
-			public int Age
-			{
-				get { return _age; }
-				set 
-				{ 
-					if(_age !=value)
-					{
-						_age = value; 
-						OnPropertyChanged("Age");
-					}
-				}
-			}
-		
-			#region INotifyPropertyChanged implementation
-			
-			public event PropertyChangedEventHandler PropertyChanged;
-			
-			private void OnPropertyChanged(string propertyName)
-			{
-				var handler = PropertyChanged;
-				if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
-			}
-			
-			#endregion
-		}
+    public class Person : INotifyPropertyChanged
+    {
+        string _name;
+        int _age;
+        
+        public string Name
+        {
+            get { return _name; }
+            set 
+            { 
+                if(_name !=value)
+                {
+                    _name = value; 
+                    OnPropertyChanged("Name");
+                }
+            }
+        }
+        
+        public int Age
+        {
+            get { return _age; }
+            set 
+            { 
+                if(_age !=value)
+                {
+                    _age = value; 
+                    OnPropertyChanged("Age");
+                }
+            }
+        }
+        
+        #region INotifyPropertyChanged implementation
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged(string propertyName)
+        {
+            var handler = PropertyChanged;
+            if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+        }
+        #endregion
+    }
 
 To get property change events we simply register an event handler.
 
@@ -108,7 +105,78 @@ Output:
         Name Dave 
         Age 21 
 
+What could be more useful is to get the value of a specific property as it changes. 
+To do this we will first introduce an extension method to get the `PropertyInfo` of the property from a strongly type expression
 
+    public static class PropertyExtensions
+    {
+        /// <summary>
+        /// Gets property information for the specified <paramref name="property"/> expression.
+        /// </summary>
+        /// <typeparam name="TSource">Type of the parameter in the <paramref name="property"/> expression.</typeparam>
+        /// <typeparam name="TValue">Type of the property's value.</typeparam>
+        /// <param name="property">The expression from which to retrieve the property information.</param>
+        /// <returns>Property information for the specified expression.</returns>
+        /// <exception cref="ArgumentException">The expression is not understood.</exception>
+        public static PropertyInfo GetPropertyInfo<TSource, TValue>(this Expression<Func<TSource, TValue>> property)
+        {
+            if (property == null)
+                throw new ArgumentNullException("property");
+        
+            var body = property.Body as MemberExpression;
+            if (body == null)
+                throw new ArgumentException("Expression is not a property", "property");
+        
+            var propertyInfo = body.Member as PropertyInfo;
+            if (propertyInfo == null)
+                throw new ArgumentException("Expression is not a property", "property");
+        
+            return propertyInfo;
+        }
+    }
+
+Now we can extend the `NotificationExtensions` class to have a method to get a sequence of property values as it the property changes.
+
+        /// <summary>
+        /// Returns an observable sequence of the value of a property when <paramref name="source"/> raises <seealso cref="INotifyPropertyChanged.PropertyChanged"/> for the given property.
+        /// </summary>
+        /// <typeparam name="T">The type of the source object. Type must implement <seealso cref="INotifyPropertyChanged"/>.</typeparam>
+        /// <typeparam name="TProperty">The type of the property that is being observed.</typeparam>
+        /// <param name="source">The object to observe property changes on.</param>
+        /// <param name="property">An expression that describes which property to observe.</param>
+        /// <returns>Returns an observable sequence of the property values as they change.</returns>
+        public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
+            where T : INotifyPropertyChanged
+        {
+                return  Observable.Create<TProperty>(o=>
+                {
+                    var propertyName = property.GetPropertyInfo().Name;
+                    var propertySelector = property.Compile();
+        
+                    return Observable.FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                                    handler => handler.Invoke,
+                                    h => source.PropertyChanged += h,
+                                    h => source.PropertyChanged -= h)
+                                .Where(e=>e.EventArgs.PropertyName==propertyName)
+                                .Select(e=>propertySelector(source))
+                                .Subscribe(o);
+                });
+        }
+    }
+    
+The new method can be used to get just the value of the `Name` property when it changes.
+
+    var Dave = new Person();
+    //Dave.PropertyChanged+=(s,e)=>{e.PropertyName.Dump("PropertyChanged");};
+    //Dave.OnAnyPropertyChanges().Dump("OnAnyPropertyChanges");
+    Dave.OnPropertyChanges(d=>d.Name).Dump("OnPropertyChanges");
+    Dave.Name = "Dave";
+    Dave.Age = 21;
+
+Output:
+    OnPropertyChanges →Dave
+
+The full [LinqPad](http://www.linqpad.net) sample in available as [INotifyPropertyChangedSample.linq](INotifyPropertyChangedSample.linq)
 
 ##DependencyProperties
 
