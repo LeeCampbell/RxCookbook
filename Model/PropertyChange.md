@@ -90,17 +90,17 @@ This now allows us to use the `OnAnyPropertyChanges` to get access to the person
 
     var Dave = new Person();
     //Dave.PropertyChanged+=(s,e)=>{e.PropertyName.Dump();};
-    Dave.OnAnyPropertyChanges().Dump("WhenAnyPropertyChanges");
+    Dave.OnAnyPropertyChanges().Dump("OnAnyPropertyChanges");
     Dave.Name = "Dave";
     Dave.Age = 21;
 
 Output:
 
-    WhenAnyPropertyChanges →Person
+    OnAnyPropertyChanges →Person
         UserQuery+Person 
         Name Dave 
         Age 0 
-    WhenAnyPropertyChanges →Person
+    OnAnyPropertyChanges →Person
         UserQuery+Person 
         Name Dave 
         Age 21 
@@ -174,6 +174,7 @@ The new method can be used to get just the value of the `Name` property when it 
     Dave.Age = 21;
 
 Output:
+
     OnPropertyChanges →Dave
 
 The full [LinqPad](http://www.linqpad.net) sample in available as [INotifyPropertyChangedSample.linq](INotifyPropertyChangedSample.linq)
