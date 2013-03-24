@@ -2,6 +2,8 @@
 
 .NET offers serveral ways to propagate property changes from an Object model. 
 The most common are using the `INotifyPropertyChanged` interface, DependencyProperties in WPF, or, using the convention of having a property with a matching property changed event.
+Often property change events are used in GUI applications to let the UI know when to automatically redraw.
+We can however leverage property change patterns outside of GUI software for what ever reasons we see fit.
 
 ##INotifyPropertyChanged
 Propbably the most common way to expose property changes is by implementing the `System.ComponentModel.INotifyPropertyChanged` interface.
@@ -180,9 +182,17 @@ Output:
 The full [LinqPad](http://www.linqpad.net) sample in available as [INotifyPropertyChangedSample.linq](INotifyPropertyChangedSample.linq)
 
 ##DependencyProperties
+In WPF (and derivative frameworks like Silverlight, Windows Phone, Windows Store Apps...), `DependencyObjects` and their `DependencyProperty` members make up a key part of the standarized framework for bring together features for data-binding, animation, styles, property value inheritence and property change notification.
+Here we will focus on how to get a property changed sequence from a `DependencyProperty`.
+
 
 ##PropertyChanged Convention
 
 ##Library implementations
 ###Rxx
 ###ReactiveUI
+
+##More links
+Allan Lindqvist's post [Observable from any property in a INotifyPropertyChanged class](http://social.msdn.microsoft.com/Forums/en-US/rx/thread/36bf6ecb-70ea-4be3-aa35-b9a9cbc9a078) on the Rx MSDN Forums.
+Richard Szalay's post [GetPropertyValues: a strongly typed reactive wrapper around INotifyPropertyChanged](http://social.msdn.microsoft.com/Forums/en-US/rx/thread/2fc8ab3c-28ed-45a9-a96f-59133a3d103c) on the Rx MSDN Forums.
+
