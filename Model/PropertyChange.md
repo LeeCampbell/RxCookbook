@@ -299,9 +299,108 @@ Output:
 The full [LinqPad](http://www.linqpad.net) sample in available as [DependencyPropertyChangedSample.linq](DependencyPropertyChangedSample.linq)
 
 ##PropertyChanged Convention
+An alternative way to notify consumers of a property change is to the use convention of have a (PropertyName)Changed event.
+In this example we have a `Name` property with a matching `NameChanged` event.
+
+	public class Person
+	{
+		string _name;
+		public string Name
+		{
+			get { return _name; }
+			set
+			{
+				_name = value; 
+				NameChanged(this, EventArgs.Empty);
+			}
+		}
+		
+		public event EventHandler NameChanged;
+		private void OnNameChanged()
+		{
+			var handler = NameChanged;
+			if(handler!=null)handler(this, EventArgs.Empty);
+		}
+	}
+
+The simple way to receive change notifications is to register an event handler.
+
+	var dave = new Person();
+	dave.NameChanged+=(s,e)=>{dave.Name.Dump("NameChanged");};	
+	dave.Name = "Dave";
+
+Output:
+
+> **NameChanged**  
+> Dave 
+
+However we can leverage the `TypeDescriptor` type to have a more generic approach to this. 
+In a similar way to how we accessed the change notification from a `DependencyProperty`, we can get a `PropertyDescriptor` and register a callback with the `AddValueChanged` method.
+
+	var dave = new Person();
+	//dave.NameChanged+=(s,e)=>{dave.Name.Dump("NameChanged");};
+	
+	var nameProp =TypeDescriptor.GetProperties(dave)
+						.Cast<PropertyDescriptor>()
+						.Where (pd => pd.Name=="Name")
+						.SingleOrDefault();
+
+	EventHandler handler = delegate { dave.Name.Dump("Name"); };
+	nameProp.AddValueChanged(dave, handler);
+	
+	dave.Name = "Dave";
+
+Output:
+
+> **Name**  
+> Dave 
+
+Just like our approach to `DependencyProperties`, we can turn this into an observable sequence with Rx.
+
+	public static class ObjectExtensions
+	{
+		public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
+		{
+			return Observable.Create<TProperty>(o=>{
+				var propertyName = property.GetPropertyInfo().Name;
+			    var propDesc =TypeDescriptor.GetProperties(source)
+							.Cast<PropertyDescriptor>()
+							.Where (pd => string.Equals(pd.Name, propertyName, StringComparison.Ordinal))
+							.SingleOrDefault();
+				if (propDesc == null)
+				{
+					o.OnError(new InvalidOperationException("Can not register change handler for this property."));
+				}
+				var propertySelector = property.Compile();
+		
+				EventHandler handler = delegate { o.OnNext(propertySelector(source)); };
+				propDesc.AddValueChanged(source, handler);
+				
+				return Disposable.Create(() => propDesc.RemoveValueChanged(source, handler));
+			});
+		}
+	}
+
+Our usage is very similar to before.
+
+	var dave = new Person();
+	dave.OnPropertyChanges(d=>d.Name).Dump("OnPropertyChanges");
+	dave.Name = "Dave";
+
+Output:
+
+	OnPropertyChanges →Dave
+
+The full [LinqPad](http://www.linqpad.net) sample in available as [PropertyChangedConvention.linq](PropertyChangedConvention.linq)
 
 ##Library implementations
 ###Rxx
+
+The wise contributors to the [Rxx](http://Rxx.codeplex.com) project have noticed that all of the sample above can atually be rolled into a single extension method.
+You see the last example will not only cleverly figure out the property changed convention, but will also identify DependencyProperties and INotifyPropertyChange implementations too.
+There have been further improvements to cater for quirks in the `TypeDescriptor` type's implementation, so if you are using Rxx, then favor their robust implementation.
+
+
 ###ReactiveUI
 
 ##More links
