@@ -185,6 +185,111 @@ The full [LinqPad](http://www.linqpad.net) sample in available as [INotifyProper
 In WPF (and derivative frameworks like Silverlight, Windows Phone, Windows Store Apps...), `DependencyObjects` and their `DependencyProperty` members make up a key part of the standarized framework for bring together features for data-binding, animation, styles, property value inheritence and property change notification.
 Here we will focus on how to get a property changed sequence from a `DependencyProperty`.
 
+A conventional way to get access to change notification for any `DependencyProperty` is to get access to a `DependencyPropertyDescriptor` for the `DependencyProperty` and then use the `AddValueChanged` method to attach a callback delegate.
+
+In this sample we create a dummy class that exposes a `Title` `DepenedencyProperty`.
+
+	public class MyControl : DependencyObject
+	{
+		#region Title DependencyProperty
+		
+		public string Title
+		{
+		get { return (string)GetValue(TitleProperty); }
+		set { SetValue(TitleProperty, value); }
+		}
+		
+		public static readonly DependencyProperty TitleProperty =
+		DependencyProperty.Register("Title", typeof(string), typeof(MyControl),
+								new PropertyMetadata());
+		
+		#endregion
+	}
+
+Here we use a `DependencyPropertyDescriptor` to attach a callback when the `Title` property changes.
+
+	var myControl = new MyControl();
+	
+	var dpd = DependencyPropertyDescriptor.FromProperty(MyControl.TitleProperty, typeof(MyControl));
+	EventHandler handler = delegate { myControl.Title.Dump("Title"); };
+	dpd.AddValueChanged(myControl, handler);
+	
+	myControl.Title = "New Title";
+
+Output:
+
+> **Title**  
+> New Title 
+
+We can use this as the basis to create an observable sequence.
+In our example we want to provide clean up by removing the callback.
+We use `Observable.Create` to get a `DependencyPropertyDescriptor` when the consumer subscribes to the sequence.
+We then push the the new values each time the callback is called.
+
+
+	public static class DependencyObjectExtensions
+	{
+		public static IObservable<T> OnPropertyChanges<T>(this DependencyObject source, DependencyProperty property)
+		{
+			return Observable.Create<T>(o=>{
+				var dpd = DependencyPropertyDescriptor.FromProperty(property, property.OwnerType);
+				if (dpd == null)
+				{
+					o.OnError(new InvalidOperationException("Can not register change handler for this dependency property."));
+				}
+		
+				EventHandler handler = delegate { o.OnNext((T)source.GetValue(property)); };
+				dpd.AddValueChanged(source, handler);
+				
+				return Disposable.Create(() => dpd.RemoveValueChanged(source, handler));
+			});
+		}
+	}
+
+This can be used by specifying the `DependencyProperty` and its type as the generic type parameter. 
+
+	var myControl = new MyControl();
+		
+	myControl.OnPropertyChanges<string>(MyControl.TitleProperty).Dump("OnPropertyChanges");
+	
+	myControl.Title = "New Title";
+
+Perhaps an improvement to this would be to get automatic type resolution by using the expression we had in the INotifyPropertyChanged sample.
+We can add this by using the `FromName` instead of the `FromProperty` static method.
+
+	public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
+		where T : DependencyObject 
+	{
+		return Observable.Create<TProperty>(o=>{
+			var propertyName = property.GetPropertyInfo().Name;
+		    var dpd =DependencyPropertyDescriptor.FromName(propertyName, typeof(T), typeof(T));
+			if (dpd == null)
+			{
+				o.OnError(new InvalidOperationException("Can not register change handler for this dependency property."));
+			}
+			var propertySelector = property.Compile();
+	
+			EventHandler handler = delegate { o.OnNext(propertySelector(source)); };
+			dpd.AddValueChanged(source, handler);
+			
+			return Disposable.Create(() => dpd.RemoveValueChanged(source, handler));
+		});
+	}
+
+We can now get access to the observable sequence of property changes without requiring us to specify the type of the property.
+
+	var myControl = new MyControl();
+	
+	//myControl.OnPropertyChanges<string>(MyControl.TitleProperty).Dump("OnPropertyChanges");
+	myControl.OnPropertyChanges(c=>c.Title).Dump("OnPropertyChanges");	
+	
+	myControl.Title = "New Title";
+
+Output:
+
+	OnPropertyChanges →New Title
+
+
 
 ##PropertyChanged Convention
 
