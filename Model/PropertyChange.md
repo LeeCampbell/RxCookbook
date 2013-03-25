@@ -254,6 +254,11 @@ This can be used by specifying the `DependencyProperty` and its type as the gene
 	
 	myControl.Title = "New Title";
 
+Output:
+
+	OnPropertyChanges →New Title
+
+
 Perhaps an improvement to this would be to get automatic type resolution by using the expression we had in the INotifyPropertyChanged sample.
 We can add this by using the `FromName` instead of the `FromProperty` static method.
 
@@ -290,6 +295,8 @@ Output:
 	OnPropertyChanges →New Title
 
 
+
+The full [LinqPad](http://www.linqpad.net) sample in available as [DependencyPropertyChangedSample.linq](DependencyPropertyChangedSample.linq)
 
 ##PropertyChanged Convention
 
