@@ -1,16 +1,16 @@
 #Observing Property changes
 
-.NET offers serveral ways to propagate property changes from an Object model. 
-The most common are using the `INotifyPropertyChanged` interface, DependencyProperties in WPF, or, using the convention of having a property with a matching property changed event.
+.NET offers several ways to propagate property changes from an Object model. 
+The most common are using the `INotifyPropertyChanged` interface, _DependencyProperties_ in WPF, or, using the convention of having a property with a matching property changed event.
 Often property change events are used in GUI applications to let the UI know when to automatically redraw.
 We can however leverage property change patterns outside of GUI software for what ever reasons we see fit.
 
 ##INotifyPropertyChanged
-Propbably the most common way to expose property changes is by implementing the `System.ComponentModel.INotifyPropertyChanged` interface.
-This interface simply exposes a `PropertyChanged` event that will propvide access to a string representing the name of the property that changed.
+Probably the most common way to expose property changes is by implementing the `System.ComponentModel.INotifyPropertyChanged` interface.
+This interface simply exposes a `PropertyChanged` event that will provide access to a string representing the name of the property that changed.
 As this interface can be found in the `System.dll` it is available for all .NET code from .NET 2.0 up.
 
-First we can start with an exmple that implements `INotifyPropertyChanged`.
+First we can start with an example that implements `INotifyPropertyChanged`.
 
 
     public class Person : INotifyPropertyChanged
@@ -182,7 +182,7 @@ Output:
 The full [LinqPad](http://www.linqpad.net) sample in available as [INotifyPropertyChangedSample.linq](INotifyPropertyChangedSample.linq)
 
 ##DependencyProperties
-In WPF (and derivative frameworks like Silverlight, Windows Phone, Windows Store Apps...), `DependencyObjects` and their `DependencyProperty` members make up a key part of the standarized framework for bring together features for data-binding, animation, styles, property value inheritence and property change notification.
+In WPF (and derivative frameworks like Silverlight, Windows Phone, Windows Store Apps...), `DependencyObjects` and their `DependencyProperty` members make up a key part of the standardized framework for bring together features for data-binding, animation, styles, property value inheritance and property change notification.
 Here we will focus on how to get a property changed sequence from a `DependencyProperty`.
 
 A conventional way to get access to change notification for any `DependencyProperty` is to get access to a `DependencyPropertyDescriptor` for the `DependencyProperty` and then use the `AddValueChanged` method to attach a callback delegate.
@@ -259,7 +259,7 @@ Output:
 	OnPropertyChanges →New Title
 
 
-Perhaps an improvement to this would be to get automatic type resolution by using the expression we had in the INotifyPropertyChanged sample.
+Perhaps an improvement to this would be to get automatic type resolution by using the expression we had in the _INotifyPropertyChanged_ sample.
 We can add this by using the `FromName` instead of the `FromProperty` static method.
 
 	public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
@@ -396,14 +396,16 @@ The full [LinqPad](http://www.linqpad.net) sample in available as [PropertyChang
 ##Library implementations
 ###Rxx
 
-The wise contributors to the [Rxx](http://Rxx.codeplex.com) project have noticed that all of the sample above can atually be rolled into a single extension method.
-You see the last example will not only cleverly figure out the property changed convention, but will also identify DependencyProperties and INotifyPropertyChange implementations too.
-There have been further improvements to cater for quirks in the `TypeDescriptor` type's implementation, so if you are using Rxx, then favor their robust implementation.
+The wise contributors to the [Rxx](http://Rxx.codeplex.com) project have noticed that all of the sample above can actually be rolled into a single extension method.
+You see the last example will not only cleverly figure out the property changed convention, but will also identify _DependencyProperties_ and `INotifyPropertyChange` implementations too.
+There have been further improvements to cater for quirks in the `TypeDescriptor` type's implementation, so if you are using Rxx, then favour their robust implementation.
 
+[FromPropertyChangedPattern.cs in Rxx](http://rxx.codeplex.com/SourceControl/changeset/view/71357#1142225)
 
 ###ReactiveUI
 
 ##More links
 Allan Lindqvist's post [Observable from any property in a INotifyPropertyChanged class](http://social.msdn.microsoft.com/Forums/en-US/rx/thread/36bf6ecb-70ea-4be3-aa35-b9a9cbc9a078) on the Rx MSDN Forums.
+
 Richard Szalay's post [GetPropertyValues: a strongly typed reactive wrapper around INotifyPropertyChanged](http://social.msdn.microsoft.com/Forums/en-US/rx/thread/2fc8ab3c-28ed-45a9-a96f-59133a3d103c) on the Rx MSDN Forums.
 
