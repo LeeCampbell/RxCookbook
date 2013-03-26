@@ -11,13 +11,22 @@
 void Main()
 {
 	ILogger log = new Logger();
+	
+//	using(log.Time("TimerSample"))
+//	{
+//		Thread.SpinWait(1000);
+//	}
+	
 	var source = new Subject<int>();
 	
-	source.Do(
-		i=>log.Debug("OnNext({0})", i),
-		ex=>log.Error("OnError({0})", ex),
-		()=>log.Debug("OnCompleted()"))
-	.Subscribe();
+//	source.Do(
+//		i=>log.Debug("OnNext({0})", i),
+//		ex=>log.Error("OnError({0})", ex),
+//		()=>log.Debug("OnCompleted()"))
+//	.Subscribe();
+	
+	source.Log(log, "Sample")
+		  .Subscribe();
 	
 	source.OnNext(1);
 	//source.OnError(new InvalidOperationException("Some failure"));
@@ -330,26 +339,26 @@ public static class LoggerExtensions
 
        logger.Debug("{0}.{1}{2}", typeName, method.Name, parenth);
    }
-
-   public static IObservable<T> Log<T>(this IObservable<T> source, ILogger logger, string name)
-   {
-       return Observable.Using(
-           ()=> logger.Time(name),
-           timer=> Observable.Create<T>(
-               o =>
-               {
-                   logger.Trace("{0}.Subscribe()", name);
-                   var subscription = source
-                       .Do(
-                           i => logger.Trace("{0}.OnNext({1})", name, i),
-                           ex => logger.Trace("{0}.OnError({1})", name, ex),
-                           () => logger.Trace("{0}.OnCompleted()", name))
-                       .Subscribe(o);
-                   var disposal = Disposable.Create(() => logger.Trace("{0}.Dispose()", name));
-                   return new CompositeDisposable(subscription, disposal);
-               })
-           );
-   }
+	
+	public static IObservable<T> Log<T>(this IObservable<T> source, ILogger logger, string name)
+	{
+	return Observable.Using(
+		()=> logger.Time(name),
+		timer=> Observable.Create<T>(
+			o =>
+			{
+				logger.Trace("{0}.Subscribe()", name);
+				var subscription = source
+					.Do(
+						i => logger.Trace("{0}.OnNext({1})", name, i),
+						ex => logger.Trace("{0}.OnError({1})", name, ex),
+						() => logger.Trace("{0}.OnCompleted()", name))
+					.Subscribe(o);
+				var disposal = Disposable.Create(() => logger.Trace("{0}.Dispose()", name));
+				return new CompositeDisposable(subscription, disposal);
+			})
+		);
+	}
 
    public static IDisposable Time(this ILogger logger, string name)
    {
