@@ -101,6 +101,38 @@ A simple implementation of getting the collection changed data would just be to 
 			h=>source.CollectionChanged+=h,
 			h=>source.CollectionChanged-=h)
 
+Output
+
+	CollectionChanges → Action Add 
+						NewItems IList (1 item) {1}
+						OldItems null 
+						NewStartingIndex 0 
+						OldStartingIndex -1 
+
+	CollectionChanges → Action Add 
+						NewItems IList (1 item) {2}
+						OldItems null 
+						NewStartingIndex 1 
+						OldStartingIndex -1 
+
+	CollectionChanges → Action Add 
+						NewItems IList (1 item) {3}
+						OldItems null 
+						NewStartingIndex 2 
+						OldStartingIndex -1 
+
+	CollectionChanges → Action Remove 
+						NewItems null
+						OldItems IList (1 item) {2} 
+						NewStartingIndex -1 
+						OldStartingIndex 1 
+
+	CollectionChanges → Action Reset 
+						NewItems null
+						OldItems null 
+						NewStartingIndex -1 
+						OldStartingIndex -1 
+
 However this would require us to check the value of the `NewItems` and `OldItems` for null each time, or risk incurring a `NullReferenceException`.
 I prefer to project the `NotifyCollectionChangedEventArgs` type into a custom type that removes the `NullReferenceException` risk for me.
 
@@ -154,4 +186,35 @@ I prefer to project the `NotifyCollectionChangedEventArgs` type into a custom ty
 	   }
 	}
 
+Now using this class we can project the sequence into a value without null values.
 
+	Observable.FromEventPattern<NotifyCollectionChangedEventHandler,NotifyCollectionChangedEventArgs>(
+		h=>source.CollectionChanged+=h,
+		h=>source.CollectionChanged-=h)
+		.Select(e => new CollectionChangedData<int>(e.EventArgs))
+		.Dump("CollectionChanges");
+
+Output:
+
+	CollectionChanges → Action Add 
+						NewItems ReadOnlyCollection<Int32> (1 item) {1}
+						OldItems ReadOnlyCollection<Int32> (0 item) {} 
+
+	CollectionChanges → Action Add 
+						NewItems ReadOnlyCollection<Int32> (1 item) {2}
+						OldItems ReadOnlyCollection<Int32> (0 item) {} 
+
+	CollectionChanges → Action Add 
+						NewItems ReadOnlyCollection<Int32> (1 item) {3}
+						OldItems ReadOnlyCollection<Int32> (0 item) {} 
+
+	CollectionChanges → Action Remove 
+						NewItems ReadOnlyCollection<Int32> (0 item) {}
+						OldItems ReadOnlyCollection<Int32> (1 item) {2} 
+
+	CollectionChanges → Action Reset 
+						NewItems ReadOnlyCollection<Int32> (0 item) {}
+						OldItems ReadOnlyCollection<Int32> (0 item) {} 
+
+I haven't kept the `NewStartingIndex` and `OldStartingIndex` properties on the new class as I have yet to have a need for them. 
+Feel free to add them if your requirements dictate obviously.
