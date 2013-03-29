@@ -1,6 +1,6 @@
 #Observing Property changes
 
-.NET offers several ways to propagate property changes from an Object model. 
+The .NET framework offers several ways to propagate property changes from an Object Model. 
 The most common are using the `INotifyPropertyChanged` interface, _DependencyProperties_ in WPF, or, using the convention of having a property with a matching property changed event.
 Often property change events are used in GUI applications to let the UI know when to automatically redraw.
 We can however leverage property change patterns outside of GUI software for what ever reasons we see fit.
