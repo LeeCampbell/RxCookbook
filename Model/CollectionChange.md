@@ -218,3 +218,34 @@ Output:
 
 I haven't kept the `NewStartingIndex` and `OldStartingIndex` properties on the new class as I have yet to have a need for them. 
 Feel free to add them if your requirements dictate obviously.
+
+Here are samples of the implementation as an extension method for both `ObservableCollection<T>` and `ReadOnlyObservableCollection<T>`:
+
+	public static IObservable<CollectionChangedData<TItem>> CollectionChanges<TItem>(this ObservableCollection<TItem> collection)
+	{
+	   return CollectionChangesImp<ObservableCollection<TItem>, TItem>(collection);
+	}
+	
+	public static IObservable<CollectionChangedData<TItem>> CollectionChanges<TItem>(
+	 this ReadOnlyObservableCollection<TItem> collection)
+	{
+	   return CollectionChangesImp<ReadOnlyObservableCollection<TItem>, TItem>(collection);
+	}
+	
+	private static IObservable<CollectionChangedData<TItem>> CollectionChangesImp<TCollection, TItem>(
+	  TCollection collection)
+	     where TCollection : IList<TItem>, INotifyCollectionChanged
+	{
+	   return Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
+	           h => collection.CollectionChanged += h,
+	           h => collection.CollectionChanged -= h)
+	       .Select(e => new CollectionChangedData<TItem>(e.EventArgs));
+	}
+
+
+##Collection's Items change notification
+An interesting progression from just getting notifications when a collection changes, is to get notified when a property on an item in that collection changes.
+For example if we have a collection of `Person` objects, we may want to be notified if one of those objects had their `Name` property changed.
+For this we can leverage the patterns we had in the [Property Changed sample](PropertyChanged.md).
+
+

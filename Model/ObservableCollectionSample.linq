@@ -34,11 +34,11 @@ void Main()
 //		.Select(e=>e.EventArgs)
 //		.Dump("CollectionChanges");
 		
-	Observable.FromEventPattern<NotifyCollectionChangedEventHandler,NotifyCollectionChangedEventArgs>(
-		h=>source.CollectionChanged+=h,
-		h=>source.CollectionChanged-=h)
-		.Select(e=>new CollectionChangedData<int>(e.EventArgs))
-		.Dump("CollectionChanges");
+//	Observable.FromEventPattern<NotifyCollectionChangedEventHandler,NotifyCollectionChangedEventArgs>(
+//		h=>source.CollectionChanged+=h,
+//		h=>source.CollectionChanged-=h)
+//		.Select(e=>new CollectionChangedData<int>(e.EventArgs))
+//		.Dump("CollectionChanges");
 	
 	//source.CollectionChanges().Dump("CollectionChanges");
 	
@@ -48,9 +48,63 @@ void Main()
 	
 	source.Remove(2);
 	source.Clear();
+	
+	var people = new ObservableCollection<Person>();
+	people.CollectionItemsChange(p=>p.Name).Dump();
+	people.Add(new Person(){Name="John"});
+	people.Add(new Person(){Name="Jack"});
+	people.Add(new Person(){Name="Jack"});
+	
+	people[0].Name = "Jon";
+	
 }
 
 // Define other methods and classes here
+public class Person : INotifyPropertyChanged
+{
+  string _name;
+  int _age;
+  
+  public string Name
+  {
+      get { return _name; }
+      set 
+      { 
+          if(_name !=value)
+          {
+              _name = value; 
+              OnPropertyChanged("Name");
+          }
+      }
+  }
+  
+  public int Age
+  {
+      get { return _age; }
+      set 
+      { 
+          if(_age !=value)
+          {
+              _age = value; 
+              OnPropertyChanged("Age");
+          }
+      }
+  }
+
+  #region INotifyPropertyChanged implementation
+  
+  public event PropertyChangedEventHandler PropertyChanged;
+  
+  private void OnPropertyChanged(string propertyName)
+  {
+      var handler = PropertyChanged;
+      if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+  }
+  
+  #endregion
+}
+
+
 //TODO: Allow the ability to provide multiple properties to WhenPropertyChanges
 //TODO: Allow the ability to filter which properties notify on change for WhenCollectionItemsChange (ie as above todo).
 public static class NotificationExtensions
@@ -121,8 +175,6 @@ public static class NotificationExtensions
                h => collection.CollectionChanged += h,
                h => collection.CollectionChanged -= h)
            .Select(e => new CollectionChangedData<TItem>(e.EventArgs));
-
-
    }
 
 
@@ -137,28 +189,28 @@ public static class NotificationExtensions
    public static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TItem>(
        this ObservableCollection<TItem> collection)
    {
-       return ItemsPropertyChange<ObservableCollection<TItem>, TItem>(collection, _ => true);
+       return CollectionItemsChange<ObservableCollection<TItem>, TItem>(collection, _ => true);
    }
 
-   public static IObservable<CollectionChangedData<TItem>> ItemsPropertyChange<TItem, TProperty>(
+   public static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TItem, TProperty>(
       this ObservableCollection<TItem> collection,
       Expression<Func<TItem, TProperty>> property)
        where TItem : INotifyPropertyChanged
    {
        var propertyName = property.GetPropertyInfo().Name;
-       return ItemsPropertyChange<ObservableCollection<TItem>, TItem>(collection, propName => propName == propertyName);
+       return CollectionItemsChange<ObservableCollection<TItem>, TItem>(collection, propName => propName == propertyName);
    }
 
-   public static IObservable<CollectionChangedData<TItem>> ItemsPropertyChange<TItem, TProperty>(
+   public static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TItem, TProperty>(
       this ReadOnlyObservableCollection<TItem> collection,
       Expression<Func<TItem, TProperty>> property)
        where TItem : INotifyPropertyChanged
    {
        var propertyName = property.GetPropertyInfo().Name;
-       return ItemsPropertyChange<ReadOnlyObservableCollection<TItem>, TItem>(collection, propName => propName == propertyName);
+       return CollectionItemsChange<ReadOnlyObservableCollection<TItem>, TItem>(collection, propName => propName == propertyName);
    }
 
-   private static IObservable<CollectionChangedData<TItem>> ItemsPropertyChange<TCollection, TItem>(
+   private static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TCollection, TItem>(
       TCollection collection,
       Predicate<string> isPropertyNameRelevant)
          where TCollection : IList<TItem>, INotifyCollectionChanged
@@ -166,7 +218,7 @@ public static class NotificationExtensions
        return Observable.Create<CollectionChangedData<TItem>>(
            o =>
            {
-
+			//TODO: Swap for a Dictionary? What about if an item is place in the collection twice? Refcount?
                var trackedItems = new List<INotifyPropertyChanged>();
                PropertyChangedEventHandler onItemChanged =
                    (sender, e) =>
