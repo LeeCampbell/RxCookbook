@@ -6,7 +6,7 @@ Collection of recipes and snippets helping you create useful Rx code
 ##Rx in your Model
 See how you can use Rx in your regular domain.
 
-[Property Change notifications](Model/PropertyChange.md)
+[Property Change notifications](Model/PropertyChange.md)  
 [Collection Change notifications](Model/CollectionChange.md)
 
 
