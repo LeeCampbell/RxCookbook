@@ -50,7 +50,10 @@ void Main()
 	source.Clear();
 	
 	var people = new ObservableCollection<Person>();
-	people.CollectionItemsChange(p=>p.Name).Dump();
+	people.CollectionItemsChange(p=>p.Name)
+		  .SelectMany(changes=>changes.NewItems)
+		  .Select(person=>person.Name)
+		  .Dump("CollectionItemsChange");
 	people.Add(new Person(){Name="John"});
 	people.Add(new Person(){Name="Jack"});
 	people.Add(new Person(){Name="Jack"});
@@ -178,8 +181,6 @@ public static class NotificationExtensions
    }
 
 
-   //TODO: Allow the ability to push which property changed on underlying Item. (string.Empty for entire object)
-   //TODO: Make Rx. Should allow filter by PropName (which would still push on string.Empty?)
    /// <summary>
    /// Returns an observable sequence of that represents modifications to a collection as they happen.
    /// </summary>
@@ -192,96 +193,95 @@ public static class NotificationExtensions
        return CollectionItemsChange<ObservableCollection<TItem>, TItem>(collection, _ => true);
    }
 
-   public static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TItem, TProperty>(
-      this ObservableCollection<TItem> collection,
-      Expression<Func<TItem, TProperty>> property)
-       where TItem : INotifyPropertyChanged
-   {
-       var propertyName = property.GetPropertyInfo().Name;
-       return CollectionItemsChange<ObservableCollection<TItem>, TItem>(collection, propName => propName == propertyName);
-   }
+public static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TItem, TProperty>(
+ this ObservableCollection<TItem> collection,
+ Expression<Func<TItem, TProperty>> property)
+  where TItem : INotifyPropertyChanged
+{
+  var propertyName = property.GetPropertyInfo().Name;
+  return CollectionItemsChange<ObservableCollection<TItem>, TItem>(collection, propName => propName == propertyName);
+}
 
-   public static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TItem, TProperty>(
-      this ReadOnlyObservableCollection<TItem> collection,
-      Expression<Func<TItem, TProperty>> property)
-       where TItem : INotifyPropertyChanged
-   {
-       var propertyName = property.GetPropertyInfo().Name;
-       return CollectionItemsChange<ReadOnlyObservableCollection<TItem>, TItem>(collection, propName => propName == propertyName);
-   }
+public static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TItem, TProperty>(
+ this ReadOnlyObservableCollection<TItem> collection,
+ Expression<Func<TItem, TProperty>> property)
+  where TItem : INotifyPropertyChanged
+{
+  var propertyName = property.GetPropertyInfo().Name;
+  return CollectionItemsChange<ReadOnlyObservableCollection<TItem>, TItem>(collection, propName => propName == propertyName);
+}
 
-   private static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TCollection, TItem>(
-      TCollection collection,
-      Predicate<string> isPropertyNameRelevant)
-         where TCollection : IList<TItem>, INotifyCollectionChanged
-   {
-       return Observable.Create<CollectionChangedData<TItem>>(
-           o =>
-           {
-			//TODO: Swap for a Dictionary? What about if an item is place in the collection twice? Refcount?
-               var trackedItems = new List<INotifyPropertyChanged>();
-               PropertyChangedEventHandler onItemChanged =
-                   (sender, e) =>
-                   {
-                       if (isPropertyNameRelevant(e.PropertyName))
-                       {
-                           var payload = new CollectionChangedData<TItem>((TItem)sender);
-                           o.OnNext(payload);
-                       }
-                   };
-               Action<IEnumerable<TItem>> registerItemChangeHandlers =
-                   items =>
-                   {
-                       foreach (var notifier in items.OfType<INotifyPropertyChanged>())
-                       {
-                           trackedItems.Add(notifier);
-                           notifier.PropertyChanged += onItemChanged;
-                       }
-                   };
-               Action<IEnumerable<TItem>> unRegisterItemChangeHandlers =
-                   items =>
-                   {
-                       foreach (var notifier in items.OfType<INotifyPropertyChanged>())
-                       {
-                           notifier.PropertyChanged -= onItemChanged;
-                           trackedItems.Remove(notifier);
-                       }
-                   };
-               NotifyCollectionChangedEventHandler onCollectionChanged =
-                   (sender, e) =>
-                   {
-                       if (e.Action == NotifyCollectionChangedAction.Reset)
-                       {
-                           foreach (var notifier in trackedItems)
-                           {
-                               notifier.PropertyChanged -= onItemChanged;
-                           }
+private static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TCollection, TItem>(
+ TCollection collection,
+ Predicate<string> isPropertyNameRelevant)
+    where TCollection : IList<TItem>, INotifyCollectionChanged
+{
+  return Observable.Create<CollectionChangedData<TItem>>(
+      o =>
+      {
+          var trackedItems = new List<INotifyPropertyChanged>();
+          PropertyChangedEventHandler onItemChanged =
+              (sender, e) =>
+              {
+                  if (isPropertyNameRelevant(e.PropertyName))
+                  {
+                      var payload = new CollectionChangedData<TItem>((TItem)sender);
+                      o.OnNext(payload);
+                  }
+              };
+          Action<IEnumerable<TItem>> registerItemChangeHandlers =
+              items =>
+              {
+                  foreach (var notifier in items.OfType<INotifyPropertyChanged>())
+                  {
+                      trackedItems.Add(notifier);
+                      notifier.PropertyChanged += onItemChanged;
+                  }
+              };
+          Action<IEnumerable<TItem>> unRegisterItemChangeHandlers =
+              items =>
+              {
+                  foreach (var notifier in items.OfType<INotifyPropertyChanged>())
+                  {
+                      notifier.PropertyChanged -= onItemChanged;
+                      trackedItems.Remove(notifier);
+                  }
+              };
 
-                           var payload = new CollectionChangedData<TItem>(trackedItems, collection);
-                           trackedItems.Clear();
-                           registerItemChangeHandlers(collection);
-                           o.OnNext(payload);
-                       }
-                       else
-                       {
-                           var payload = new CollectionChangedData<TItem>(e);
-                           unRegisterItemChangeHandlers(payload.OldItems);
-                           registerItemChangeHandlers(payload.NewItems);
-                           o.OnNext(payload);
-                       }
-                   };
+          registerItemChangeHandlers(collection);
+          
 
-               registerItemChangeHandlers(collection);
-               collection.CollectionChanged += onCollectionChanged;
-
-               return Disposable.Create(
-                   () =>
-                   {
-                       collection.CollectionChanged -= onCollectionChanged;
-                       unRegisterItemChangeHandlers(collection);
-                   });
-           });
-   }
+		  var collChanged = Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
+		  	h=>collection.CollectionChanged+=h,
+		  	h=>collection.CollectionChanged-=h);
+			
+		  return collChanged
+		  	.Finally(()=>unRegisterItemChangeHandlers(collection))
+			.Select(e=>e.EventArgs)
+		  	.Subscribe(
+		  		e=>{
+					if (e.Action == NotifyCollectionChangedAction.Reset)
+					{
+						foreach (var notifier in trackedItems)
+						{
+							notifier.PropertyChanged -= onItemChanged;
+						}
+					
+						var payload = new CollectionChangedData<TItem>(trackedItems, collection);
+						trackedItems.Clear();
+						registerItemChangeHandlers(collection);
+						o.OnNext(payload);
+					}
+					else
+					{
+						var payload = new CollectionChangedData<TItem>(e);
+						unRegisterItemChangeHandlers(payload.OldItems);
+						registerItemChangeHandlers(payload.NewItems);
+						o.OnNext(payload);
+					}
+		  });
+      });
+}
 }
 public sealed class NotifyEventComparer : IEqualityComparer<PropertyChangedEventArgs>
 {

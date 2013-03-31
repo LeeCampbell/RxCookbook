@@ -248,4 +248,105 @@ An interesting progression from just getting notifications when a collection cha
 For example if we have a collection of `Person` objects, we may want to be notified if one of those objects had their `Name` property changed.
 For this we can leverage the patterns we had in the [Property Changed sample](PropertyChanged.md).
 
+	public static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TItem, TProperty>(
+	 this ObservableCollection<TItem> collection,
+	 Expression<Func<TItem, TProperty>> property)
+	  where TItem : INotifyPropertyChanged
+	{
+	  var propertyName = property.GetPropertyInfo().Name;
+	  return CollectionItemsChange<ObservableCollection<TItem>, TItem>(collection, propName => propName == propertyName);
+	}
+		
+	private static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TCollection, TItem>(
+	 TCollection collection,
+	 Predicate<string> isPropertyNameRelevant)
+	    where TCollection : IList<TItem>, INotifyCollectionChanged
+	{
+	  return Observable.Create<CollectionChangedData<TItem>>(
+	      o =>
+	      {
+	          var trackedItems = new List<INotifyPropertyChanged>();
+	          PropertyChangedEventHandler onItemChanged =
+	              (sender, e) =>
+	              {
+	                  if (isPropertyNameRelevant(e.PropertyName))
+	                  {
+	                      var payload = new CollectionChangedData<TItem>((TItem)sender);
+	                      o.OnNext(payload);
+	                  }
+	              };
+	          Action<IEnumerable<TItem>> registerItemChangeHandlers =
+	              items =>
+	              {
+	                  foreach (var notifier in items.OfType<INotifyPropertyChanged>())
+	                  {
+	                      trackedItems.Add(notifier);
+	                      notifier.PropertyChanged += onItemChanged;
+	                  }
+	              };
+	          Action<IEnumerable<TItem>> unRegisterItemChangeHandlers =
+	              items =>
+	              {
+	                  foreach (var notifier in items.OfType<INotifyPropertyChanged>())
+	                  {
+	                      notifier.PropertyChanged -= onItemChanged;
+	                      trackedItems.Remove(notifier);
+	                  }
+	              };
+	
+	          registerItemChangeHandlers(collection);
+	          
+	
+			  var collChanged = Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
+			  	h=>collection.CollectionChanged+=h,
+			  	h=>collection.CollectionChanged-=h);
+				
+			  return collChanged
+			  	.Finally(()=>unRegisterItemChangeHandlers(collection))
+				.Select(e=>e.EventArgs)
+			  	.Subscribe(
+			  		e=>{
+						if (e.Action == NotifyCollectionChangedAction.Reset)
+						{
+							foreach (var notifier in trackedItems)
+							{
+								notifier.PropertyChanged -= onItemChanged;
+							}
+						
+							var payload = new CollectionChangedData<TItem>(trackedItems, collection);
+							trackedItems.Clear();
+							registerItemChangeHandlers(collection);
+							o.OnNext(payload);
+						}
+						else
+						{
+							var payload = new CollectionChangedData<TItem>(e);
+							unRegisterItemChangeHandlers(payload.OldItems);
+							registerItemChangeHandlers(payload.NewItems);
+							o.OnNext(payload);
+						}
+			  });
+	      });
+	}
 
+Now we can add, remove and modify items in a collection and get notified about it.
+
+	var people = new ObservableCollection<Person>();
+	people.CollectionItemsChange(p=>p.Name)
+		  .SelectMany(changes=>changes.NewItems)
+		  .Select(person=>person.Name)
+		  .Dump("CollectionItemsChange");
+	people.Add(new Person(){Name="John"});
+	people.Add(new Person(){Name="Jack"});
+	people.Add(new Person(){Name="Jack"});
+	
+	people[0].Name = "Jon";
+
+Output:
+
+	CollectionItemsChange →John
+	CollectionItemsChange →Jack
+	CollectionItemsChange →Jack
+	CollectionItemsChange →Jon
+
+The full [LinqPad](http://www.linqpad.net) sample in available as [ObservableCollectionSample.linq](ObservableCollectionSample.linq)
