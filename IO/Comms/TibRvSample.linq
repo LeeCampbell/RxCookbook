@@ -12,27 +12,39 @@
 
 void Main()
 {
-  /*
-  Add reference to System.Reactive.dll, System.Reactive.Providers.dll, TIBCO.Rendezvous.dll & TIBCO.Rendezvous.netmodule
-  You may have to manually set the reference to the netmodule by editing the .linq file in notepad as LinqPad does not 
-    see this as a valid assembly to reference (fair enough too!)
-  e.g.
-    <Reference>D:\Externals\TibcoRv\TIBCO.Rendezvous.dll</Reference>
-    <Reference>D:\Externals\TibcoRv\TIBCO.Rendezvous.netmodule</Reference>
-  Built against v8.2.2 (1.0.3688.17766 of TIBCO.Rendezvous.dll & 8,2,2,0 of tibrv.dll)
-  */
-  var service = "7500";
+	/*
+	Add reference to System.Reactive.dll, System.Reactive.Providers.dll, TIBCO.Rendezvous.dll & TIBCO.Rendezvous.netmodule
+	You may have to manually set the reference to the netmodule by editing the .linq file in notepad as LinqPad does not 
+	    see this as a valid assembly to reference (fair enough too!)
+	e.g.
+	    <Reference>D:\Externals\TibcoRv\TIBCO.Rendezvous.dll</Reference>
+	    <Reference>D:\Externals\TibcoRv\TIBCO.Rendezvous.netmodule</Reference>
+	Built against v8.2.2 (1.0.3688.17766 of TIBCO.Rendezvous.dll & 8,2,2,0 of tibrv.dll)
+	*/
+	var service = "7500";
 	var network = ";239.255.0.1";
 	var daemon = "tcp:7500";
+	var subject = "TEST.Message";
 	
 	var env = new TibcoEnvironment();
 	var subjectListenerFactory = new SubjectListenerFactory(env, service, network, daemon);
 	
-	var myTestSubjectListener = subjectListenerFactory.CreateSubjectListener("TEST.Message");						 
+	var myTestSubjectListener = subjectListenerFactory.CreateSubjectListener(subject);						 
 	
 	myTestSubjectListener.Dump("Test messages");
 
-  Console.WriteLine("Stop the query when ready");
+	Console.WriteLine("Sending message");
+	using(env.Open())
+	{
+		var transport = new NetTransport(service, network, daemon);
+		var message = new Message();
+		message.SendSubject = subject;
+		message.AddField("id", "ABC123");
+		transport.Send(message);
+	}
+	Console.WriteLine("Message sent");
+
+	Console.WriteLine("Stop the query when ready");
 }
 
 public interface ISubjectListenerFactory
