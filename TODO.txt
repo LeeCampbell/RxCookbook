@@ -1,0 +1,36 @@
+[Rx Cookbook]
+
+  IO
+		Streaming a FileStream into an Rx sequence
+		Http
+			WebStream(?)
+			Http Request/Response
+			WebSocket
+		TibRv subject
+		PubNub?
+		PubSubHubBub
+		Solace
+		Bluetooth (32Feet)
+	Alg
+		Running aggregates (TWAP/VWAP, average time to execute (Tesco Sample))
+		
+	UI
+		Updating a collection
+			With Progress status
+				With ReactiveUI?
+				
+	Caching
+		State of the World + Updates
+		Last Value cache
+		Invalidating the cache
+		
+		(Nirvana/Akavache/Rxx)
+	Enrichment
+		Incoming Phone call (number) to Contact details?
+		
+	Combos
+		Risk (Enrichment + Alg + Cache)
+			Have a running aggregate of positions, combined with current rates to get real time risk (sort of).
+		
+	In concert with Immutablility Immutable Collections (Persistent structures)
+		Esp for returning Byte arrays? -->IO
