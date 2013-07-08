@@ -1,6 +1,6 @@
 [Rx Cookbook]
 
-  IO
+	IO
 		Streaming a FileStream into an Rx sequence
 		Http
 			WebStream(?)
@@ -34,3 +34,10 @@
 		
 	In concert with Immutablility Immutable Collections (Persistent structures)
 		Esp for returning Byte arrays? -->IO
+
+Tips
+
+	Naming
+		When representing state for an asynchronous system, favour the Present-Continuous verb for State values with the exception of non-continuous states
+		e.g. Starting, Running, Idleing, Processing, Stopping
+		However Stopped, Terminated for non-continuous/Terminal state.
