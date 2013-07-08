@@ -41,3 +41,4 @@ Tips
 		When representing state for an asynchronous system, favour the Present-Continuous verb for State values with the exception of non-continuous states
 		e.g. Starting, Running, Idleing, Processing, Stopping
 		However Stopped, Terminated for non-continuous/Terminal state.
+		Note: Atomic operations dont need the intermediary states e.g. if Stopping is immediate then dont have the Stopping state, just transition directly to Stopped.
