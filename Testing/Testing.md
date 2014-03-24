@@ -80,3 +80,19 @@ These can be used like this
     
 Note, here the test would fail quickly and without having to set a Global timeout on our testing framework or build server.
 
+
+If you still want to be able to safely get access to the single/first value from a sequence in a unit test, we could also create an extension method that safely yeilds that value when appropriate.
+
+
+    public static T SafeSingle<T>(this IObservable<T> source)
+    {
+        Assert.IsNotNull(source);
+
+        var observer = new TestScheduler().CreateObserver<T>();
+        using (source.Subscribe(observer))
+        {
+            Assert.AreEqual(2, observer.Messages.Count, "Source is not a single value sequence.");
+            Assert.AreEqual(NotificationKind.OnCompleted, observer.Messages[1].Value.Kind, "Only two message were expected : OnNext(expected) and OnCompleted.");
+            return observer.Messages[0].Value.Value;
+        }
+    }
