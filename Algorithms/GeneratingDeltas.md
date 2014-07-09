@@ -16,7 +16,7 @@ There are two ways we can do this; _ZipSkip_ or _Scan_
 
 ##ZipSkip
 
-The _ZipSkip_ method is popular however it is more difficult to learn, and requires more effort to share subscriptions.
+The _ZipSkip_ algorithm is popular however it is more difficult to learn, and requires more effort to share subscriptions.
 Effectively the _ZipSkip_ algorithm will `Zip` the source sequence with the source sequence again but skipping the first value.
 This will mean that the `resultSelector` of the `Zip` operator will be provided a value and the previous value.
 It also means that we can only get a delta once we have 2 values produced.
@@ -25,7 +25,7 @@ It also means that we can only get a delta once we have 2 values produced.
     var currentValues = previousValues.Skip(1);
     var deltas = previousValues.Zip(currentvalues, (prev, curr)=>curr-prev);
     
-The issue with the value above solution is that we are assuming that there is no cost or side effect to making a subscription to our source.
+The issue with the above solution is that we are assuming that there is no cost or side effect to making a subscription to our source.
 To put it another way, we are assuming the sequence is *Hot*.
 If it is not safe to make this assumption then we also need to share the subscription cost, probably via the `Publish()` operator.
 
@@ -34,13 +34,14 @@ If it is not safe to make this assumption then we also need to share the subscri
     var currentValues = previousValues.Skip(1);
     var deltas = previousValues.Zip(currentvalues, (prev, curr)=>curr-prev)
     
-Now we have the extra responsibilty of having to connect the published sequence, and the duty to dispose of that connection too.
-We could use `RefCount()` however that could introduce a race condition, that would be manually mitigated by manually connecting after subscription.
+Now we have the extra responsibilty of having to connect the published sequence, and then dispose that connection appropriately.
+We could use `RefCount()` however that could introduce a race condition, that would be mitigated by manually connecting after subscription.
 
 If we want to ensure that this algorithm does yeild a value when the source sequence yileds its first value, then we can add a `StartsWith` operator.
 
-
-    var source = GetObservableSequence().StartsWith(0).Publish();
+    var source = GetObservableSequence()
+        .StartsWith(0)
+        .Publish();
     var previousValues = source;
     var currentValues = previousValues.Skip(1);
     var deltas = previousValues.Zip(currentvalues, (prev, curr)=>curr-prev)
@@ -48,10 +49,9 @@ If we want to ensure that this algorithm does yeild a value when the source sequ
 
 ##Scan
 
-An alternate solution, which is arguably more simple, is to use the Scan operator.
-The Scan operator is often used for producing running aggregate values e.g. Running Totals.
-In this case we will instead use the accumulator value to just store the last value.
-
+An alternate solution, which is arguably more simple, is to use the `Scan` operator.
+The Scan operator is often used for producing running aggregate values e.g. running totals.
+In this case we will use the accumulator (`acc`) to just store the last value.
 
     var source = GetObservableSequence();
     var deltas = source.Scan(new{Prev=0, Delta=0},(acc, curr)=>new{Prev=curr, Delta=curr-acc.Prev})
