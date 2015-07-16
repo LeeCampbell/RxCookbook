@@ -393,6 +393,63 @@ Output:
 
 The full [LinqPad](http://www.linqpad.net) sample in available as [PropertyChangedConvention.linq](PropertyChangedConvention.linq)
 
+## Excess garbage
+The above methods are functionally complete, however they can perform unnecessary memory allocations.
+If memory pressure or Garbage collection is a concern then you may want to optimise them.
+
+A specific concern is the `Observable.FromEventPattern` factory.
+For each event that is converts to an `OnNext` callback, it will wrap the sender and event payload in a `EventPattern<T>` object e.g. code like 
+
+	`onNext(new EventPattern<TEventArgs>(sender, eventArgs));`
+
+occurs several times in the [source code] (https://github.com/Reactive-Extensions/Rx.NET/blob/v2.2.5/Rx.NET/Source/System.Reactive.Linq/Reactive/Linq/Observable/FromEventPattern.cs).
+
+If this is a concern for you then you may want to create your own manual wrapper around these events.
+This is done quite simply with `Observable.Create`.
+For example
+
+	var btn = new Button();
+	var clicks = Observable.Create<RoutedEventArgs>(o=>{
+		RoutedEventHandler handler = (sender, args)=>o.OnNext(args);
+		
+		btn.Click+=handler;
+		return Disposable.Create(()=>btn.Click-=handler);
+	});
+
+So we could create a generic implementation as such:
+
+    private static IObservable<PropertyChangedEventArgs> OnPropertyChanges<T>(this T source)
+        where T : INotifyPropertyChanged
+    {
+        return Observable.Create<PropertyChangedEventArgs>(observer =>
+            {
+                PropertyChangedEventHandler handler = (s, e) => observer.OnNext(e);
+                source.PropertyChanged += handler;
+                return Disposable.Create(() => source.PropertyChanged -= handler);
+            });
+    }
+
+As a warning to the reader that is pursuing performance, the optimisation above will reduce your allocations, and hence and GC pressure.
+You could further reduce memory allocation by optimising the implementation of the `INotifyPropertyChanged` event flow, removing the allocation of the `PropertyChangedEventArgs` by caching it.
+However, if the next thing you do is use an `Expression` to filter the events and extract the property value, you will incur a large computational cost.
+This computational cost is likely to dwarf the cost of the garbage collection, unless the .NET compiler and runtime make some large optimisations in version 5 or later.
+My current measurements show for 100Million events, the standard method caused 890 Gen0 collections and took 7.9seconds. 
+The optimised `OnPropertyChanges` above completed with the Expression to filter and project the value, reduced the Gen0 collections to 381 and reduced elapsed time to 6.5seconds.
+Further optimising the code to remove `PropertyChangedEventArgs` allocations reducing Gen0 allocations to 0 gain only 160ms to reduce elapsed time to 6.3seconds.
+Replacing the Expression with basic `string` and `Func<TSource,TProperty>` carves off half the time to drop the elapsed time to 3.6seconds.
+
+	Standard implementation
+		msg:100000000  GCs: 890  Elapsed: 00:00:07.9463508
+	Optimized implementation
+		 msg:100000000  GCs: 381  Elapsed: 00:00:06.5006809
+	Optimized implementation, no allocation in INPC
+		msg:100000000  GCs:   0  Elapsed: 00:00:06.3432379
+	Optimized implementation, no allocation in INPC, Func instead of Expression
+		msg:100000000  GCs:   0  Elapsed: 00:00:03.6200376
+
+
+Micro-benchmarks should be taking with a grain of salt, and you should back up any assumptions about the performance of your code with higher level benchmarks.
+
 ##Library implementations
 ###Rxx
 
@@ -403,6 +460,8 @@ There have been further improvements to cater for quirks in the `TypeDescriptor`
 [FromPropertyChangedPattern.cs in Rxx](http://rxx.codeplex.com/SourceControl/changeset/view/71357#1142225)
 
 ###ReactiveUI
+ReactiveUI is a popular GUI framework with Rx at its heart.
+It can be useful for building cross platform products with Xamarin (WPF, iOS, Android) as you adopt its change notification and command system, and they will apply platform specific binding.
 
 ##More links
 Allan Lindqvist's post [Observable from any property in a INotifyPropertyChanged class](http://social.msdn.microsoft.com/Forums/en-US/rx/thread/36bf6ecb-70ea-4be3-aa35-b9a9cbc9a078) on the Rx MSDN Forums.
