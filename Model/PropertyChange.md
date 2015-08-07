@@ -400,7 +400,7 @@ If memory pressure or Garbage collection is a concern then you may want to optim
 A specific concern is the `Observable.FromEventPattern` factory.
 For each event that is converts to an `OnNext` callback, it will wrap the sender and event payload in a `EventPattern<T>` object e.g. code like 
 
-	`onNext(new EventPattern<TEventArgs>(sender, eventArgs));`
+	onNext(new EventPattern<TEventArgs>(sender, eventArgs));
 
 occurs several times in the [source code] (https://github.com/Reactive-Extensions/Rx.NET/blob/v2.2.5/Rx.NET/Source/System.Reactive.Linq/Reactive/Linq/Observable/FromEventPattern.cs).
 
