@@ -25,9 +25,9 @@ Let's see the problem in code
 
 	public IObservable<string> StreamLines_Wrong(string filePath)
 	{
-   		//This is not really 'Observable'. We have just created a pull (IEnumerble) loop and masked it as IObservable
+   		//This is not really 'Observable'. We have just created a pull (IEnumerable) loop and masked it as IObservable
 		//	We have also lost the ability to provide cancellation to the consumer.
-		//	Here we would be better off having stayed with a simple `yeild return` pattern and returned an IEnumerable.
+		//	Here we would be better off having stayed with a simple `yield return` pattern and returned an IEnumerable.
        	return Observable.Create<string>(o =>
 		{
 			using (var reader = new StreamReader(filePath))
@@ -56,7 +56,7 @@ We can make a slight improvement by at least using the asynchronous methods from
 	{
    		//Here we leverage the async/await features of C#. However we are still just creating an enumerator.
 		//	However we still have lost the ability to provide cancellation to the consumer.
-		//	Still would be better off having stayed with a simple `yeild return` pattern returning an IEnumerable.
+		//	Still would be better off having stayed with a simple `yield return` pattern returning an IEnumerable.
        	return Observable.Create<string>(async o =>
 		{
 			using (var reader = new StreamReader(filePath))
