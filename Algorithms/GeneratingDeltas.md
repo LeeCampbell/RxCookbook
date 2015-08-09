@@ -7,14 +7,14 @@ This kind of algorithm is used for getting changes in data eg.
  * Changes in price
  * Changes in temperature
  * Changes in location
- 
-To generate a delta value we just need to be able to access the previous value and compare it to the current value. 
+
+To generate a delta value we just need to be able to access the previous value and compare it to the current value.
 
 ```csharp
 delta = currentValue - previousValue
 ```
 
-There are several ways we can do this. Here we will cover using overlapping windows with `Buffer`, a running accumulator with `Scan` or merging the current sequence with a copy of sequence delayed by 1 using `Publish`, `Zip` and `Skip`. 
+There are several ways we can do this. Here we will cover using overlapping windows with `Buffer`, a running accumulator with `Scan` or merging the current sequence with a copy of sequence delayed by 1 using `Publish`, `Zip` and `Skip`.
 
 ##Buffer
 A very simple option is to use the overload of the `Buffer` that allows you to specify the buffer size _and_ the size of the stride to take.
@@ -27,8 +27,8 @@ To create this we can specify a buffer size of 2 and a stride length of 1 i.e. `
 
 ```csharp
 var source = GetObservableSequence();
-var deltas = source.Buffer(2,1)
-	.Select(buffer=>buffer[1]-buffer[0]);
+var deltas = source.Buffer(2, 1)
+    .Select(buffer => buffer[1] - buffer[0]);
 ```
 
 Note that this will not produce a value until at least two values have been produced.
@@ -42,11 +42,11 @@ In this case we will use the accumulator (`acc`) to just store the last value.
 
 ```csharp
 var source = GetObservableSequence();
-var deltas = source.Scan(new{Prev=0, Delta=0},(acc, curr)=>new{Prev=curr, Delta=curr-acc.Prev})
-    .Select(x=>x.Delta);
+var deltas = source.Scan(new { Prev = 0, Delta = 0 }, (acc, curr) => new { Prev = curr, Delta = curr - acc.Prev })
+    .Select(x => x.Delta);
 ```
- 
-This is arguably more complex solution than the `Buffer` option.   
+
+This is arguably more complex solution than the `Buffer` option.
 This however does not suffer the same limitation as the `Buffer` algorithm, and can yield values as soon as the first value from the source is produced (without the need for `StartWith`).
 
 
@@ -60,7 +60,7 @@ It also means that we can only get a delta once we have 2 values produced.
 ```csharp
 var previousValues = GetObservableSequence();
 var currentValues = previousValues.Skip(1);
-var deltas = previousValues.Zip(currentvalues, (prev, curr)=>curr-prev);
+var deltas = previousValues.Zip(currentvalues, (prev, curr) => curr - prev);
 ```
 
 The issue with the above solution is that we are assuming that there is no cost or side effect to making a subscription to our source.
@@ -71,7 +71,7 @@ If it is not safe to make this assumption then we also need to share the subscri
 var source = GetObservableSequence().Publish();
 var previousValues = source;
 var currentValues = previousValues.Skip(1);
-var deltas = previousValues.Zip(currentvalues, (prev, curr)=>curr-prev)
+var deltas = previousValues.Zip(currentvalues, (prev, curr) => curr - prev)
 ```
 
 Now we have the extra responsibility of having to connect the published sequence, and then dispose that connection appropriately.
@@ -85,7 +85,7 @@ var source = GetObservableSequence()
     .Publish();
 var previousValues = source;
 var currentValues = previousValues.Skip(1);
-var deltas = previousValues.Zip(currentvalues, (prev, curr)=>curr-prev)
+var deltas = previousValues.Zip(currentvalues, (prev, curr) => curr - prev)
 ```
 
 
@@ -97,4 +97,4 @@ var deltas = previousValues.Zip(currentvalues, (prev, curr)=>curr-prev)
 
 
 
-    
+

@@ -25,58 +25,64 @@ The solution i have used before is to take pull apart the `ObserveOn(IScheduler)
 ```csharp
 public static IObservable<TSource> ObserveLatestOn<TSource>(this IObservable<TSource> source, IScheduler scheduler)
 {
-	if (source == null) throw new ArgumentNullException("source");
-	if (scheduler == null) throw new ArgumentNullException("scheduler");
-	
-	return Observable.CreateWithDisposable<TSource>(observer =>
-	{
-		//var q = new Queue<Notification<TSource>>();
-		//var q = new Stack<Notification<TSource>>();
-		Notification<TSource> q = null;
-		var gate = new object();
-		bool active = false;
-		var cancelable = new MutableDisposable();
-		var disposable = source.Materialize().Subscribe(delegate(Notification<TSource> n)
-		{
-			bool flag;
-			lock (gate)
-			{
-				flag = !active;
-				active = true;
-				//q.Enqueue(n);
-				//q.Push(n);
-				q = n;
-			}
+    if (source == null)
+    {
+        throw new ArgumentNullException("source");
+    }
+    if (scheduler == null)
+    {
+        throw new ArgumentNullException("scheduler");
+    }
+
+    return Observable.CreateWithDisposable<TSource>(observer =>
+    {
+        //var q = new Queue<Notification<TSource>>();
+        //var q = new Stack<Notification<TSource>>();
+        Notification<TSource> q = null;
+        var gate = new object();
+        bool active = false;
+        var cancelable = new MutableDisposable();
+        var disposable = source.Materialize().Subscribe(delegate(Notification<TSource> n)
+        {
+            bool flag;
+            lock (gate)
+            {
+                flag = !active;
+                active = true;
+                //q.Enqueue(n);
+                //q.Push(n);
+                q = n;
+            }
 
 
-			if (flag)
-			{
-				cancelable.Replace(scheduler.Schedule(self =>
-				{
-					Notification<TSource> notification = null;
-					lock (gate)
-					{
-						//notification = q.Dequeue();
-						notification = q;
-						q = null;
-						//notification = q.Pop();
-						//q.Clear();
-					}
-					notification.Accept(observer);
-					bool flag2 = false;
-					lock (gate)
-					{
-						flag2 = active = (q != null);
-					}
-					if (flag2)
-					{
-						self();
-					}
-				}));
-			}
-		});
-		return new CompositeDisposable(new[] { disposable, cancelable });
-	});
+            if (flag)
+            {
+                cancelable.Replace(scheduler.Schedule(self =>
+                {
+                    Notification<TSource> notification = null;
+                    lock (gate)
+                    {
+                        //notification = q.Dequeue();
+                        notification = q;
+                        q = null;
+                        //notification = q.Pop();
+                        //q.Clear();
+                    }
+                    notification.Accept(observer);
+                    bool flag2 = false;
+                    lock (gate)
+                    {
+                        flag2 = active = (q != null);
+                    }
+                    if (flag2)
+                    {
+                        self();
+                    }
+                }));
+            }
+        });
+        return new CompositeDisposable(new[] { disposable, cancelable });
+    });
 }
 ```
 
