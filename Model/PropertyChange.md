@@ -12,54 +12,57 @@ As this interface can be found in the `System.dll` it is available for all .NET 
 
 First we can start with an example that implements `INotifyPropertyChanged`.
 
-
-    public class Person : INotifyPropertyChanged
+```csharp
+public class Person : INotifyPropertyChanged
+{
+    string _name;
+    int _age;
+    
+    public string Name
     {
-        string _name;
-        int _age;
-        
-        public string Name
-        {
-            get { return _name; }
-            set 
-            { 
-                if(_name !=value)
-                {
-                    _name = value; 
-                    OnPropertyChanged("Name");
-                }
+        get { return _name; }
+        set 
+        { 
+            if(_name !=value)
+            {
+                _name = value; 
+                OnPropertyChanged("Name");
             }
         }
-        
-        public int Age
-        {
-            get { return _age; }
-            set 
-            { 
-                if(_age !=value)
-                {
-                    _age = value; 
-                    OnPropertyChanged("Age");
-                }
-            }
-        }
-        
-        #region INotifyPropertyChanged implementation
-        public event PropertyChangedEventHandler PropertyChanged;
-        private void OnPropertyChanged(string propertyName)
-        {
-            var handler = PropertyChanged;
-            if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
-        }
-        #endregion
     }
+    
+    public int Age
+    {
+        get { return _age; }
+        set 
+        { 
+            if(_age !=value)
+            {
+                _age = value; 
+                OnPropertyChanged("Age");
+            }
+        }
+    }
+    
+    #region INotifyPropertyChanged implementation
+    public event PropertyChangedEventHandler PropertyChanged;
+    private void OnPropertyChanged(string propertyName)
+    {
+        var handler = PropertyChanged;
+        if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+    }
+    #endregion
+}
+```
 
 To get property change events we simply register an event handler.
 
-    var Dave = new Person();
-    Dave.PropertyChanged+=(s,e)=>{e.PropertyName.Dump();};
-    Dave.Name = "Dave";
-    Dave.Age = 21;
+```csharp
+var Dave = new Person();
+Dave.PropertyChanged+=(s,e)=>{e.PropertyName.Dump();};
+Dave.Name = "Dave";
+Dave.Age = 21;
+```
 
 Ouput:
 
@@ -69,32 +72,36 @@ Ouput:
 This is only somewhat useful as I imagine that you probably want to get the new value of the property.
 This first extension method allows you to get the entire object when it raise the `PropertyChanged` event.
 
-    public static class NotificationExtensions
+```csharp
+public static class NotificationExtensions
+{
+    /// <summary>
+    /// Returns an observable sequence of the source any time the <c>PropertyChanged</c> event is raised.
+    /// </summary>
+    /// <typeparam name="T">The type of the source object. Type must implement <seealso cref="INotifyPropertyChanged"/>.</typeparam>
+    /// <param name="source">The object to observe property changes on.</param>
+    /// <returns>Returns an observable sequence of the value of the source when ever the <c>PropertyChanged</c> event is raised.</returns>
+    public static IObservable<T> OnAnyPropertyChanges<T>(this T source)
+        where T : INotifyPropertyChanged
     {
-        /// <summary>
-        /// Returns an observable sequence of the source any time the <c>PropertyChanged</c> event is raised.
-        /// </summary>
-        /// <typeparam name="T">The type of the source object. Type must implement <seealso cref="INotifyPropertyChanged"/>.</typeparam>
-        /// <param name="source">The object to observe property changes on.</param>
-        /// <returns>Returns an observable sequence of the value of the source when ever the <c>PropertyChanged</c> event is raised.</returns>
-        public static IObservable<T> OnAnyPropertyChanges<T>(this T source)
-            where T : INotifyPropertyChanged
-        {
-                return Observable.FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
-                                    handler => handler.Invoke,
-                                    h => source.PropertyChanged += h,
-                                    h => source.PropertyChanged -= h)
-                                .Select(_=>source);
-        }
+        return Observable.FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                            handler => handler.Invoke,
+                            h => source.PropertyChanged += h,
+                            h => source.PropertyChanged -= h)
+                        .Select(_=>source);
     }
+}
+```
 
 This now allows us to use the `OnAnyPropertyChanges` to get access to the person object when ever a property changes.
 
-    var Dave = new Person();
-    //Dave.PropertyChanged+=(s,e)=>{e.PropertyName.Dump();};
-    Dave.OnAnyPropertyChanges().Dump("OnAnyPropertyChanges");
-    Dave.Name = "Dave";
-    Dave.Age = 21;
+```csharp
+var Dave = new Person();
+//Dave.PropertyChanged+=(s,e)=>{e.PropertyName.Dump();};
+Dave.OnAnyPropertyChanges().Dump("OnAnyPropertyChanges");
+Dave.Name = "Dave";
+Dave.Age = 21;
+```
 
 Output:
 
@@ -110,70 +117,75 @@ Output:
 What could be more useful is to get the value of a specific property as it changes. 
 To do this we will first introduce an extension method to get the `PropertyInfo` of the property from a strongly type expression
 
-    public static class PropertyExtensions
+```csharp
+public static class PropertyExtensions
+{
+    /// <summary>
+    /// Gets property information for the specified <paramref name="property"/> expression.
+    /// </summary>
+    /// <typeparam name="TSource">Type of the parameter in the <paramref name="property"/> expression.</typeparam>
+    /// <typeparam name="TValue">Type of the property's value.</typeparam>
+    /// <param name="property">The expression from which to retrieve the property information.</param>
+    /// <returns>Property information for the specified expression.</returns>
+    /// <exception cref="ArgumentException">The expression is not understood.</exception>
+    public static PropertyInfo GetPropertyInfo<TSource, TValue>(this Expression<Func<TSource, TValue>> property)
     {
-        /// <summary>
-        /// Gets property information for the specified <paramref name="property"/> expression.
-        /// </summary>
-        /// <typeparam name="TSource">Type of the parameter in the <paramref name="property"/> expression.</typeparam>
-        /// <typeparam name="TValue">Type of the property's value.</typeparam>
-        /// <param name="property">The expression from which to retrieve the property information.</param>
-        /// <returns>Property information for the specified expression.</returns>
-        /// <exception cref="ArgumentException">The expression is not understood.</exception>
-        public static PropertyInfo GetPropertyInfo<TSource, TValue>(this Expression<Func<TSource, TValue>> property)
-        {
-            if (property == null)
-                throw new ArgumentNullException("property");
-        
-            var body = property.Body as MemberExpression;
-            if (body == null)
-                throw new ArgumentException("Expression is not a property", "property");
-        
-            var propertyInfo = body.Member as PropertyInfo;
-            if (propertyInfo == null)
-                throw new ArgumentException("Expression is not a property", "property");
-        
-            return propertyInfo;
-        }
+        if (property == null)
+            throw new ArgumentNullException("property");
+    
+        var body = property.Body as MemberExpression;
+        if (body == null)
+            throw new ArgumentException("Expression is not a property", "property");
+    
+        var propertyInfo = body.Member as PropertyInfo;
+        if (propertyInfo == null)
+            throw new ArgumentException("Expression is not a property", "property");
+    
+        return propertyInfo;
     }
+}
+```
 
 Now we can extend the `NotificationExtensions` class to have a method to get a sequence of property values as it the property changes.
 
-        /// <summary>
-        /// Returns an observable sequence of the value of a property when <paramref name="source"/> raises <seealso cref="INotifyPropertyChanged.PropertyChanged"/> for the given property.
-        /// </summary>
-        /// <typeparam name="T">The type of the source object. Type must implement <seealso cref="INotifyPropertyChanged"/>.</typeparam>
-        /// <typeparam name="TProperty">The type of the property that is being observed.</typeparam>
-        /// <param name="source">The object to observe property changes on.</param>
-        /// <param name="property">An expression that describes which property to observe.</param>
-        /// <returns>Returns an observable sequence of the property values as they change.</returns>
-        public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
-            where T : INotifyPropertyChanged
-        {
-                return  Observable.Create<TProperty>(o=>
-                {
-                    var propertyName = property.GetPropertyInfo().Name;
-                    var propertySelector = property.Compile();
-        
-                    return Observable.FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
-                                    handler => handler.Invoke,
-                                    h => source.PropertyChanged += h,
-                                    h => source.PropertyChanged -= h)
-                                .Where(e=>e.EventArgs.PropertyName==propertyName)
-                                .Select(e=>propertySelector(source))
-                                .Subscribe(o);
-                });
-        }
-    }
+```csharp
+/// <summary>
+/// Returns an observable sequence of the value of a property when <paramref name="source"/> raises <seealso cref="INotifyPropertyChanged.PropertyChanged"/> for the given property.
+/// </summary>
+/// <typeparam name="T">The type of the source object. Type must implement <seealso cref="INotifyPropertyChanged"/>.</typeparam>
+/// <typeparam name="TProperty">The type of the property that is being observed.</typeparam>
+/// <param name="source">The object to observe property changes on.</param>
+/// <param name="property">An expression that describes which property to observe.</param>
+/// <returns>Returns an observable sequence of the property values as they change.</returns>
+public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
+    where T : INotifyPropertyChanged
+{
+    return  Observable.Create<TProperty>(o=>
+    {
+        var propertyName = property.GetPropertyInfo().Name;
+        var propertySelector = property.Compile();
+
+        return Observable.FromEventPattern<PropertyChangedEventHandler, PropertyChangedEventArgs>(
+                        handler => handler.Invoke,
+                        h => source.PropertyChanged += h,
+                        h => source.PropertyChanged -= h)
+                    .Where(e=>e.EventArgs.PropertyName==propertyName)
+                    .Select(e=>propertySelector(source))
+                    .Subscribe(o);
+    });
+}
+```
     
 The new method can be used to get just the value of the `Name` property when it changes.
 
-    var Dave = new Person();
-    //Dave.PropertyChanged+=(s,e)=>{e.PropertyName.Dump("PropertyChanged");};
-    //Dave.OnAnyPropertyChanges().Dump("OnAnyPropertyChanges");
-    Dave.OnPropertyChanges(d=>d.Name).Dump("OnPropertyChanges");
-    Dave.Name = "Dave";
-    Dave.Age = 21;
+```csharp
+var Dave = new Person();
+//Dave.PropertyChanged+=(s,e)=>{e.PropertyName.Dump("PropertyChanged");};
+//Dave.OnAnyPropertyChanges().Dump("OnAnyPropertyChanges");
+Dave.OnPropertyChanges(d=>d.Name).Dump("OnPropertyChanges");
+Dave.Name = "Dave";
+Dave.Age = 21;
+```
 
 Output:
 
@@ -189,32 +201,36 @@ A conventional way to get access to change notification for any `DependencyPrope
 
 In this sample we create a dummy class that exposes a `Title` `DepenedencyProperty`.
 
-	public class MyControl : DependencyObject
+```csharp
+public class MyControl : DependencyObject
+{
+	#region Title DependencyProperty
+	
+	public string Title
 	{
-		#region Title DependencyProperty
-		
-		public string Title
-		{
-		get { return (string)GetValue(TitleProperty); }
-		set { SetValue(TitleProperty, value); }
-		}
-		
-		public static readonly DependencyProperty TitleProperty =
-		DependencyProperty.Register("Title", typeof(string), typeof(MyControl),
-								new PropertyMetadata());
-		
-		#endregion
+	get { return (string)GetValue(TitleProperty); }
+	set { SetValue(TitleProperty, value); }
 	}
+	
+	public static readonly DependencyProperty TitleProperty =
+	DependencyProperty.Register("Title", typeof(string), typeof(MyControl),
+							new PropertyMetadata());
+	
+	#endregion
+}
+```
 
 Here we use a `DependencyPropertyDescriptor` to attach a callback when the `Title` property changes.
 
-	var myControl = new MyControl();
-	
-	var dpd = DependencyPropertyDescriptor.FromProperty(MyControl.TitleProperty, typeof(MyControl));
-	EventHandler handler = delegate { myControl.Title.Dump("Title"); };
-	dpd.AddValueChanged(myControl, handler);
-	
-	myControl.Title = "New Title";
+```csharp
+var myControl = new MyControl();
+
+var dpd = DependencyPropertyDescriptor.FromProperty(MyControl.TitleProperty, typeof(MyControl));
+EventHandler handler = delegate { myControl.Title.Dump("Title"); };
+dpd.AddValueChanged(myControl, handler);
+
+myControl.Title = "New Title";
+```
 
 Output:
 
@@ -226,33 +242,36 @@ In our example we want to provide clean up by removing the callback.
 We use `Observable.Create` to get a `DependencyPropertyDescriptor` when the consumer subscribes to the sequence.
 We then push the the new values each time the callback is called.
 
-
-	public static class DependencyObjectExtensions
+```csharp
+public static class DependencyObjectExtensions
+{
+	public static IObservable<T> OnPropertyChanges<T>(this DependencyObject source, DependencyProperty property)
 	{
-		public static IObservable<T> OnPropertyChanges<T>(this DependencyObject source, DependencyProperty property)
-		{
-			return Observable.Create<T>(o=>{
-				var dpd = DependencyPropertyDescriptor.FromProperty(property, property.OwnerType);
-				if (dpd == null)
-				{
-					o.OnError(new InvalidOperationException("Can not register change handler for this dependency property."));
-				}
-		
-				EventHandler handler = delegate { o.OnNext((T)source.GetValue(property)); };
-				dpd.AddValueChanged(source, handler);
-				
-				return Disposable.Create(() => dpd.RemoveValueChanged(source, handler));
-			});
-		}
+		return Observable.Create<T>(o => {
+			var dpd = DependencyPropertyDescriptor.FromProperty(property, property.OwnerType);
+			if (dpd == null)
+			{
+				o.OnError(new InvalidOperationException("Can not register change handler for this dependency property."));
+			}
+	
+			EventHandler handler = delegate { o.OnNext((T)source.GetValue(property)); };
+			dpd.AddValueChanged(source, handler);
+			
+			return Disposable.Create(() => dpd.RemoveValueChanged(source, handler));
+		});
 	}
+}
+```
 
 This can be used by specifying the `DependencyProperty` and its type as the generic type parameter. 
 
-	var myControl = new MyControl();
-		
-	myControl.OnPropertyChanges<string>(MyControl.TitleProperty).Dump("OnPropertyChanges");
-	
-	myControl.Title = "New Title";
+```csharp
+var myControl = new MyControl();
+
+myControl.OnPropertyChanges<string>(MyControl.TitleProperty).Dump("OnPropertyChanges");
+
+myControl.Title = "New Title";
+```
 
 Output:
 
@@ -262,33 +281,37 @@ Output:
 Perhaps an improvement to this would be to get automatic type resolution by using the expression we had in the _INotifyPropertyChanged_ sample.
 We can add this by using the `FromName` instead of the `FromProperty` static method.
 
-	public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
-		where T : DependencyObject 
-	{
-		return Observable.Create<TProperty>(o=>{
-			var propertyName = property.GetPropertyInfo().Name;
-		    var dpd =DependencyPropertyDescriptor.FromName(propertyName, typeof(T), typeof(T));
-			if (dpd == null)
-			{
-				o.OnError(new InvalidOperationException("Can not register change handler for this dependency property."));
-			}
-			var propertySelector = property.Compile();
-	
-			EventHandler handler = delegate { o.OnNext(propertySelector(source)); };
-			dpd.AddValueChanged(source, handler);
-			
-			return Disposable.Create(() => dpd.RemoveValueChanged(source, handler));
-		});
-	}
+```csharp
+public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
+	where T : DependencyObject 
+{
+	return Observable.Create<TProperty>(o=>{
+		var propertyName = property.GetPropertyInfo().Name;
+	    var dpd = DependencyPropertyDescriptor.FromName(propertyName, typeof(T), typeof(T));
+		if (dpd == null)
+		{
+			o.OnError(new InvalidOperationException("Can not register change handler for this dependency property."));
+		}
+		var propertySelector = property.Compile();
+
+		EventHandler handler = delegate { o.OnNext(propertySelector(source)); };
+		dpd.AddValueChanged(source, handler);
+		
+		return Disposable.Create(() => dpd.RemoveValueChanged(source, handler));
+	});
+}
+```
 
 We can now get access to the observable sequence of property changes without requiring us to specify the type of the property.
 
-	var myControl = new MyControl();
-	
-	//myControl.OnPropertyChanges<string>(MyControl.TitleProperty).Dump("OnPropertyChanges");
-	myControl.OnPropertyChanges(c=>c.Title).Dump("OnPropertyChanges");	
-	
-	myControl.Title = "New Title";
+```csharp
+var myControl = new MyControl();
+
+//myControl.OnPropertyChanges<string>(MyControl.TitleProperty).Dump("OnPropertyChanges");
+myControl.OnPropertyChanges(c => c.Title).Dump("OnPropertyChanges");	
+
+myControl.Title = "New Title";
+```
 
 Output:
 
@@ -302,32 +325,36 @@ The full [LinqPad](http://www.linqpad.net) sample in available as [DependencyPro
 An alternative way to notify consumers of a property change is to the use convention of have a (PropertyName)Changed event.
 In this example we have a `Name` property with a matching `NameChanged` event.
 
-	public class Person
+```csharp
+public class Person
+{
+	string _name;
+	public string Name
 	{
-		string _name;
-		public string Name
+		get { return _name; }
+		set
 		{
-			get { return _name; }
-			set
-			{
-				_name = value; 
-				NameChanged(this, EventArgs.Empty);
-			}
-		}
-		
-		public event EventHandler NameChanged;
-		private void OnNameChanged()
-		{
-			var handler = NameChanged;
-			if(handler!=null)handler(this, EventArgs.Empty);
+			_name = value; 
+			NameChanged(this, EventArgs.Empty);
 		}
 	}
+	
+	public event EventHandler NameChanged;
+	private void OnNameChanged()
+	{
+		var handler = NameChanged;
+		if(handler != null) handler(this, EventArgs.Empty);
+	}
+}
+```
 
 The simple way to receive change notifications is to register an event handler.
 
-	var dave = new Person();
-	dave.NameChanged+=(s,e)=>{dave.Name.Dump("NameChanged");};	
-	dave.Name = "Dave";
+```csharp
+var dave = new Person();
+dave.NameChanged += (s, e) => { dave.Name.Dump("NameChanged"); };
+dave.Name = "Dave";
+```
 
 Output:
 
@@ -337,18 +364,20 @@ Output:
 However we can leverage the `TypeDescriptor` type to have a more generic approach to this. 
 In a similar way to how we accessed the change notification from a `DependencyProperty`, we can get a `PropertyDescriptor` and register a callback with the `AddValueChanged` method.
 
-	var dave = new Person();
-	//dave.NameChanged+=(s,e)=>{dave.Name.Dump("NameChanged");};
-	
-	var nameProp =TypeDescriptor.GetProperties(dave)
-						.Cast<PropertyDescriptor>()
-						.Where (pd => pd.Name=="Name")
-						.SingleOrDefault();
+```csharp
+var dave = new Person();
+//dave.NameChanged += (s, e) => { dave.Name.Dump("NameChanged"); };
 
-	EventHandler handler = delegate { dave.Name.Dump("Name"); };
-	nameProp.AddValueChanged(dave, handler);
-	
-	dave.Name = "Dave";
+var nameProp = TypeDescriptor.GetProperties(dave)
+					.Cast<PropertyDescriptor>()
+					.Where(pd => pd.Name=="Name")
+					.SingleOrDefault();
+
+EventHandler handler = delegate { dave.Name.Dump("Name"); };
+nameProp.AddValueChanged(dave, handler);
+
+dave.Name = "Dave";
+```
 
 Output:
 
@@ -357,35 +386,39 @@ Output:
 
 Just like our approach to `DependencyProperties`, we can turn this into an observable sequence with Rx.
 
-	public static class ObjectExtensions
+```csharp
+public static class ObjectExtensions
+{
+	public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
 	{
-		public static IObservable<TProperty> OnPropertyChanges<T, TProperty>(this T source, Expression<Func<T, TProperty>> property)
-		{
-			return Observable.Create<TProperty>(o=>{
-				var propertyName = property.GetPropertyInfo().Name;
-			    var propDesc =TypeDescriptor.GetProperties(source)
-							.Cast<PropertyDescriptor>()
-							.Where (pd => string.Equals(pd.Name, propertyName, StringComparison.Ordinal))
-							.SingleOrDefault();
-				if (propDesc == null)
-				{
-					o.OnError(new InvalidOperationException("Can not register change handler for this property."));
-				}
-				var propertySelector = property.Compile();
-		
-				EventHandler handler = delegate { o.OnNext(propertySelector(source)); };
-				propDesc.AddValueChanged(source, handler);
-				
-				return Disposable.Create(() => propDesc.RemoveValueChanged(source, handler));
-			});
-		}
+		return Observable.Create<TProperty>(o=>{
+			var propertyName = property.GetPropertyInfo().Name;
+		    var propDesc =TypeDescriptor.GetProperties(source)
+						.Cast<PropertyDescriptor>()
+						.Where (pd => string.Equals(pd.Name, propertyName, StringComparison.Ordinal))
+						.SingleOrDefault();
+			if (propDesc == null)
+			{
+				o.OnError(new InvalidOperationException("Can not register change handler for this property."));
+			}
+			var propertySelector = property.Compile();
+	
+			EventHandler handler = delegate { o.OnNext(propertySelector(source)); };
+			propDesc.AddValueChanged(source, handler);
+			
+			return Disposable.Create(() => propDesc.RemoveValueChanged(source, handler));
+		});
 	}
+}
+```
 
 Our usage is very similar to before.
 
-	var dave = new Person();
-	dave.OnPropertyChanges(d=>d.Name).Dump("OnPropertyChanges");
-	dave.Name = "Dave";
+```csharp
+var dave = new Person();
+dave.OnPropertyChanges(d => d.Name).Dump("OnPropertyChanges");
+dave.Name = "Dave";
+```
 
 Output:
 
@@ -400,7 +433,9 @@ If memory pressure or Garbage collection is a concern then you may want to optim
 A specific concern is the `Observable.FromEventPattern` factory.
 For each event that is converts to an `OnNext` callback, it will wrap the sender and event payload in a `EventPattern<T>` object e.g. code like 
 
-	onNext(new EventPattern<TEventArgs>(sender, eventArgs));
+```csharp
+onNext(new EventPattern<TEventArgs>(sender, eventArgs));
+```
 
 occurs several times in the [source code] (https://github.com/Reactive-Extensions/Rx.NET/blob/v2.2.5/Rx.NET/Source/System.Reactive.Linq/Reactive/Linq/Observable/FromEventPattern.cs).
 
@@ -408,26 +443,31 @@ If this is a concern for you then you may want to create your own manual wrapper
 This is done quite simply with `Observable.Create`.
 For example
 
-	var btn = new Button();
-	var clicks = Observable.Create<RoutedEventArgs>(o=>{
-		RoutedEventHandler handler = (sender, args)=>o.OnNext(args);
-		
-		btn.Click+=handler;
-		return Disposable.Create(()=>btn.Click-=handler);
-	});
+```csharp
+var btn = new Button();
+var clicks = Observable.Create<RoutedEventArgs>(o =>
+{
+	RoutedEventHandler handler = (sender, args) => o.OnNext(args);
+	
+	btn.Click += handler;
+	return Disposable.Create(() => btn.Click -= handler);
+});
+```
 
 So we could create a generic implementation as such:
 
-    private static IObservable<PropertyChangedEventArgs> OnPropertyChanges<T>(this T source)
-        where T : INotifyPropertyChanged
-    {
-        return Observable.Create<PropertyChangedEventArgs>(observer =>
-            {
-                PropertyChangedEventHandler handler = (s, e) => observer.OnNext(e);
-                source.PropertyChanged += handler;
-                return Disposable.Create(() => source.PropertyChanged -= handler);
-            });
-    }
+```csharp
+private static IObservable<PropertyChangedEventArgs> OnPropertyChanges<T>(this T source)
+    where T : INotifyPropertyChanged
+{
+    return Observable.Create<PropertyChangedEventArgs>(observer =>
+        {
+            PropertyChangedEventHandler handler = (s, e) => observer.OnNext(e);
+            source.PropertyChanged += handler;
+            return Disposable.Create(() => source.PropertyChanged -= handler);
+        });
+}
+```
 
 As a warning to the reader that is pursuing performance, the optimisation above will reduce your allocations, and hence and GC pressure.
 You could further reduce memory allocation by optimising the implementation of the `INotifyPropertyChanged` event flow, removing the allocation of the `PropertyChangedEventArgs` by caching it.

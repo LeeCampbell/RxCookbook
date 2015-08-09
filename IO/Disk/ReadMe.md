@@ -23,128 +23,136 @@ This leaves us with the question
 
 Let's see the problem in code
 
-	public IObservable<string> StreamLines_Wrong(string filePath)
+```csharp
+public IObservable<string> StreamLines_Wrong(string filePath)
+{
+	//This is not really 'Observable'. We have just created a pull (IEnumerable) loop and masked it as IObservable
+	//	We have also lost the ability to provide cancellation to the consumer.
+	//	Here we would be better off having stayed with a simple `yield return` pattern and returned an IEnumerable.
+   	return Observable.Create<string>(o =>
 	{
-   		//This is not really 'Observable'. We have just created a pull (IEnumerable) loop and masked it as IObservable
-		//	We have also lost the ability to provide cancellation to the consumer.
-		//	Here we would be better off having stayed with a simple `yield return` pattern and returned an IEnumerable.
-       	return Observable.Create<string>(o =>
+		using (var reader = new StreamReader(filePath))
 		{
-			using (var reader = new StreamReader(filePath))
+			while (!reader.EndOfStream)
 			{
-				while (!reader.EndOfStream)
+				try
 				{
-					try
-					{
-						var line = reader.ReadLine();
-						o.OnNext(line);
-					}
-					catch (Exception e)
-					{
-						o.OnError(e);
-					}
-				}				
-				o.OnCompleted();
+					var line = reader.ReadLine();
+					o.OnNext(line);
+				}
+				catch (Exception e)
+				{
+					o.OnError(e);
+				}
 			}
-			return Disposable.Empty;
-		});
-	}
+			o.OnCompleted();
+		}
+		return Disposable.Empty;
+	});
+}
+```
 
 We can make a slight improvement by at least using the asynchronous methods from the `StreamReader`.
 
-	public IObservable<string> StreamLines_AsyncButStillWrong(string filePath)
+```csharp
+public IObservable<string> StreamLines_AsyncButStillWrong(string filePath)
+{
+	//Here we leverage the async/await features of C#. However we are still just creating an enumerator.
+	//	However we still have lost the ability to provide cancellation to the consumer.
+	//	Still would be better off having stayed with a simple `yield return` pattern returning an IEnumerable.
+   	return Observable.Create<string>(async o =>
 	{
-   		//Here we leverage the async/await features of C#. However we are still just creating an enumerator.
-		//	However we still have lost the ability to provide cancellation to the consumer.
-		//	Still would be better off having stayed with a simple `yield return` pattern returning an IEnumerable.
-       	return Observable.Create<string>(async o =>
+		using (var reader = new StreamReader(filePath))
 		{
-			using (var reader = new StreamReader(filePath))
+			while (!reader.EndOfStream)
 			{
-				while (!reader.EndOfStream)
+				try
 				{
-					try
-					{
-						var line = await reader.ReadLineAsync();
-						o.OnNext(line);
-					}
-					catch (Exception e)
-					{
-						o.OnError(e);
-					}
-				}				
-				o.OnCompleted();
+					var line = await reader.ReadLineAsync();
+					o.OnNext(line);
+				}
+				catch (Exception e)
+				{
+					o.OnError(e);
+				}
 			}
-			return Disposable.Empty;
-		});
-	}
+			o.OnCompleted();
+		}
+		return Disposable.Empty;
+	});
+}
+```
 
 A corrected approach might be to introduce a scheduler. This would allow us to schedule work and potentially invoke a recursive scheduling loop. This would also allow us to return the scheduled `IDisposable`.
 
-	public IObservable<string> StreamLines_Scheduler(string filePath, IScheduler scheduler)
-    {
-   		//Here we use an the recursive scheduler technique.
-		//	This does alter the metho signature as an IScheduler implementation needs to be provided now.
-       	return Observable.Create<string>(o =>
+```csharp
+public IObservable<string> StreamLines_Scheduler(string filePath, IScheduler scheduler)
+{
+	//Here we use an the recursive scheduler technique.
+	//	This does alter the metho signature as an IScheduler implementation needs to be provided now.
+   	return Observable.Create<string>(o =>
+	{
+		var reader = new StreamReader(filePath);
+		var cancelation = scheduler.Schedule(async self=>
 		{
-			var reader = new StreamReader(filePath);
-			var cancelation = scheduler.Schedule(async self=>
+			if(!reader.EndOfStream)
 			{
-				if(!reader.EndOfStream)
+				try
 				{
-					try
-					{
-						var line = await reader.ReadLineAsync();
-						o.OnNext(line);
-						self();	//Recursively call back into this lambda.
-					}
-					catch (Exception e)
-					{
-						o.OnError(e);
-					}
+					var line = await reader.ReadLineAsync();
+					o.OnNext(line);
+					self();	//Recursively call back into this lambda.
 				}
-				else
+				catch (Exception e)
 				{
-					o.OnCompleted();
-				}					
-				
-			});
+					o.OnError(e);
+				}
+			}
+			else
+			{
+				o.OnCompleted();
+			}
 			
-			return new CompositeDisposable(cancelation, reader);
 		});
-	}
+		
+		return new CompositeDisposable(cancelation, reader);
+	});
+}
+```
 
 Finally we could consider a more simple approach just by using a different overload to `Observable.Create`. 
 If we adopt the overload that takes a `CancellationToken` as well as and `IObserver` we now don't have to return that `IDisposable` from our method.
 Instead we can check the `IsCancellationRequested` property in our loop.
 
-	public IObservable<string> StreamLines(string filePath)
-    {
-   		//Here we use an overload of Create that provides a CancellationTokenSource.
-		//	This can be used to signal the subscription has been disposed.
-		//	In this case it is more elegant than trying to return an IDisposable instance.
-       	return Observable.Create<string>(async (o, cts) =>
+```csharp
+public IObservable<string> StreamLines(string filePath)
+{
+	//Here we use an overload of Create that provides a CancellationTokenSource.
+	//	This can be used to signal the subscription has been disposed.
+	//	In this case it is more elegant than trying to return an IDisposable instance.
+   	return Observable.Create<string>(async (o, cts) =>
+	{
+		using (var reader = new StreamReader(filePath))
 		{
-			using (var reader = new StreamReader(filePath))
+			while (!cts.IsCancellationRequested && !reader.EndOfStream)
 			{
-				while (!cts.IsCancellationRequested && !reader.EndOfStream)
+				try
 				{
-					try
-					{
-						var line = await reader.ReadLineAsync();
-						o.OnNext(line);
-					}
-					catch (Exception e)
-					{
-						o.OnError(e);
-					}
+					var line = await reader.ReadLineAsync();
+					o.OnNext(line);
 				}
-				if (!cts.IsCancellationRequested && reader.EndOfStream)
+				catch (Exception e)
 				{
-					o.OnCompleted();
+					o.OnError(e);
 				}
 			}
-		});
-	}
+			if (!cts.IsCancellationRequested && reader.EndOfStream)
+			{
+				o.OnCompleted();
+			}
+		}
+	});
+}
+```
 
 Full [LinqPad](http://www.linqpad.net) sample at [ReadFromDisk.linq](ReadFromDisk.linq).
