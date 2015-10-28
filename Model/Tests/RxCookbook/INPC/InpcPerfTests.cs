@@ -15,6 +15,7 @@ namespace RxCookbook.INPC
 
         public static void Run()
         {
+            //Avoid any warm up cost and also attempt to get the code JIT compiled -LC
             for (int i = 0; i < 3; i++)
             {
                 RunStdInpcObs();
@@ -50,7 +51,6 @@ namespace RxCookbook.INPC
             Program.Clean();
             var optEvtResult = RunOptInpcEvt();
             Program.Clean();
-
             var obsNullResult = RunNullInpcObs();
             Program.Clean();
             var obsUnitResult = RunUnitInpcObs();
@@ -137,6 +137,7 @@ namespace RxCookbook.INPC
                 return result;
             }
         }
+
         private static ThroughputTestResult RunExtremeCompiledInpcObs()
         {
             var count = 0;
@@ -190,7 +191,6 @@ namespace RxCookbook.INPC
             }
         }
 
-
         private static ThroughputTestResult RunInpcEvt()
         {
             var count = 0;
@@ -214,7 +214,6 @@ namespace RxCookbook.INPC
             return result;
 
         }
-
 
         private static ThroughputTestResult RunOptInpcEvt()
         {

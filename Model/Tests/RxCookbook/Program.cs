@@ -6,7 +6,8 @@ namespace RxCookbook
     {
         static void Main(string[] args)
         {
-            INPC.InpcPerfTests.Run();
+            //INPC.InpcPerfTests.Run();
+            LoadShedding.ObserveLatestOnPerfTests.Run();
             Console.ReadLine();
         }
 
