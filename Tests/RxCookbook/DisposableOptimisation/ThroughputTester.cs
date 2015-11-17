@@ -39,7 +39,7 @@ namespace RxCookbook.DisposableOptimisation
             foreach (var testCandidate in _testCandidates)
             {
                 var result = testCandidate.Value.Run();
-                results[testCandidate.Key] = result;
+                results[testCandidate.Key] = result.ToArray();
             }
 
             var colHeaders = results.First().Value.Select(tr => tr.Concurrency.ToString()).ToArray();

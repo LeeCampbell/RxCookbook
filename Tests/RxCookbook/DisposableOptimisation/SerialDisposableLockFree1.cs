@@ -30,31 +30,30 @@ namespace RxCookbook.DisposableOptimisation
 
             set
             {
-                //If Disposed, then dispose of value, 
-                //else, store value, dispose old.
-                var previous = _current;
-                var wasReplaced = InterlockedConditionalReplace(ref _current, value, disposable => disposable != Disposed.Instance);
+                IDisposable previous;
+                do
+                {
+                    previous = _current;
+                    if (ReferenceEquals(previous, Disposed.Instance)) break;
+                }
+                //If the location is still set to the value we just checked (previous), it will get replaced. Else, try again.
+                while (!ReferenceEquals(Interlocked.CompareExchange(ref _current, value, previous), previous));
+                var wasReplaced = !ReferenceEquals(previous, Disposed.Instance);
+
                 if (wasReplaced)
                 {
-                    previous?.Dispose();
+                    if (previous != null)
+                        previous.Dispose();
                 }
                 else
                 {
-                    value?.Dispose();
+                    if (value != null)
+                        value.Dispose();
                 }
+
             }
         }
-        private static bool InterlockedConditionalReplace<T>(ref T location, T newValue, Func<T, bool> predicate) where T : class
-        {
-            T initialValue;
-            do
-            {
-                initialValue = location;
-                if (predicate(initialValue)) return false;
-            }
-            while (Interlocked.CompareExchange(ref location, newValue, initialValue) != initialValue);
-            return true;
-        }
+
         /// <summary>
         /// Disposes the underlying disposable as well as all future replacements.
         /// </summary>
