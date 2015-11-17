@@ -6,7 +6,7 @@ using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Text;
 using System.Threading;
-using HdrHistogram.NET;
+using HdrHistogram;
 
 namespace RxCookbook.LoadShedding
 {
@@ -20,9 +20,10 @@ namespace RxCookbook.LoadShedding
         private const int ValuesToProduce = EventsPerSecond * (60 * MinutesToRun);
         private static readonly Dictionary<string, Func<IObservable<Payload>, IScheduler, IObservable<Payload>>> _testCandidates = new Dictionary<string, Func<IObservable<Payload>, IScheduler, IObservable<Payload>>>()
         {
-            {"ObserveOn", Observable.ObserveOn},
+            //{"ObserveOn", Observable.ObserveOn},
             {"ObserveLatestOn", ObservableExtensions.ObserveLatestOn},
-            {"TakeMostRecent", ObservableExtensions.TakeMostRecent}
+            {"ObserveLatestOnOptimisedSerialDisposable", ObservableExtensions.ObserveLatestOnOptimisedSerialDisposable},
+            //{"TakeMostRecent", ObservableExtensions.TakeMostRecent}
         };
 
 
@@ -30,14 +31,15 @@ namespace RxCookbook.LoadShedding
         {
             string output;
             Console.WriteLine("Priming...");
-            for (int i = 0; i < 2; i++)
-            {
+            //for (int i = 0; i < 2; i++)
+            //{
                 foreach (var testCandidate in _testCandidates)
                 {
                     output = RunTest(testCandidate.Value, null);
-                    Console.WriteLine("Prime run {0}. {1} OutputLength:{2}", i, testCandidate.Key, output.Length);
+                    //Console.WriteLine("Prime run {0}. {1} OutputLength:{2}", i, testCandidate.Key, output.Length);
+                    Console.WriteLine("Prime run {0}. {1} OutputLength:{2}", 0, testCandidate.Key, output.Length);
                 }
-            }
+            //}
             Console.WriteLine("Priming complete.");
             Console.WriteLine();
             Console.WriteLine();
@@ -82,7 +84,7 @@ namespace RxCookbook.LoadShedding
 
             Console.WriteLine("Producer started {0}", subscriptionMode);
 
-            var latencyRecorder = new Histogram(1000000000L * 60L * 30L, 3); // 1 ns to 30 minutes
+            var latencyRecorder = new LongHistogram(1000000000L * 60L * 30L, 3); // 1 ns to 30 minutes
 
             var mre = new AutoResetEvent(false);
             int receiveCount = 0;
@@ -101,7 +103,7 @@ namespace RxCookbook.LoadShedding
                     {
                         payload.Received();
                         receiveCount++; //Should be thread-safe here.
-                        latencyRecorder.recordValue(payload.ReceiveLatency());
+                        latencyRecorder.RecordValue(payload.ReceiveLatency());
 
                         //10k -> 0.036
                         //20k -> 0.09s
@@ -133,25 +135,15 @@ namespace RxCookbook.LoadShedding
                         sb.AppendLine();
                         sb.AppendFormat("Received {0} events.", receiveCount);
                         sb.AppendLine();
-                        sb.AppendFormat("Latency @ min    {0}", TimeSpan.FromTicks(latencyRecorder.getMinValue()));
-                        sb.AppendLine();
-                        sb.AppendFormat("Latency @ 50.00% {0}", TimeSpan.FromTicks(latencyRecorder.getValueAtPercentile(50.00)));
-                        sb.AppendLine();
-                        sb.AppendFormat("Latency @ 90.00% {0}", TimeSpan.FromTicks(latencyRecorder.getValueAtPercentile(90.00)));
-                        sb.AppendLine();
-                        sb.AppendFormat("Latency @ 99.00% {0}", TimeSpan.FromTicks(latencyRecorder.getValueAtPercentile(99.00)));
-                        sb.AppendLine();
-                        sb.AppendFormat("Latency @ 99.90% {0}", TimeSpan.FromTicks(latencyRecorder.getValueAtPercentile(99.90)));
-                        sb.AppendLine();
-                        sb.AppendFormat("Latency @ 99.99% {0}", TimeSpan.FromTicks(latencyRecorder.getValueAtPercentile(99.99)));
-                        sb.AppendLine();
-                        sb.AppendFormat("Latency @ max    {0}", TimeSpan.FromTicks(latencyRecorder.getMaxValue()));
+
+                        var writer = new StringWriter(sb);
+                        latencyRecorder.OutputPercentileDistribution(writer, 10);
                         sb.AppendLine();
 
                         var sw = new StringWriter();
                         var dateTime = DateTime.Now.ToString("yyyy-MM-ddThh.mm.ss");
                         var fileName = string.Format(@".\output-{0}-{1}.hgrm", subscriptionMode, dateTime);
-                        latencyRecorder.outputPercentileDistribution(sw);
+                        latencyRecorder.OutputPercentileDistribution(sw);
                         File.WriteAllText(fileName, sw.ToString());
                         sb.AppendFormat("Results saved to {0}", fileName);
 

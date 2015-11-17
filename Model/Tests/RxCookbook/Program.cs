@@ -7,7 +7,9 @@ namespace RxCookbook
         static void Main(string[] args)
         {
             //INPC.InpcPerfTests.Run();
-            LoadShedding.ObserveLatestOnPerfTests.Run();
+            //LoadShedding.ObserveLatestOnPerfTests.Run();
+            //DisposableOptimisation.StressTester.Run();
+            DisposableOptimisation.ThroughputTester.Run();
             Console.ReadLine();
         }
 
@@ -15,6 +17,7 @@ namespace RxCookbook
         {
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true);
             GC.WaitForPendingFinalizers();
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true);
         }
-    }    
+    }
 }
