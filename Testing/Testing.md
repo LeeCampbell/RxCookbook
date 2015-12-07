@@ -1,4 +1,5 @@
 TODO: Complete this WIP (Work In Progress)
+
 TODO: Update this to lead the reader into using the ReactiveTest.OnNext/OnError/OnCompleted methods.
 
 
@@ -52,14 +53,24 @@ public static class TestableObservableEx
     {
         return source.Subscriptions.Any(s => s.Unsubscribe == long.MaxValue);
     }
-
-    public static void AssertSingleValueOf<T>(this IObservable<T> source, T expected)
+    
+    public static void AssertIsEmpty<T>(this IObservable<T> source, TestScheduler testScheduler = new TestScheduler())
     {
-        var observer = new TestScheduler().CreateObserver<T>();
+        var observer = testScheduler.CreateObserver<T>();
+        using (source.Subscribe(observer))
+        {
+            Assert.AreEqual(1, observer.Messages.Count, "Source is not an empty sequence.");
+            Assert.AreEqual(NotificationKind.OnCompleted, observer.Messages[0].Value.Kind, "Only one notification was expected : OnCompleted.");
+        }
+    }
+
+    public static void AssertSingleValueOf<T>(this IObservable<T> source, T expected, TestScheduler testScheduler = new TestScheduler())
+    {
+        var observer = testScheduler.CreateObserver<T>();
         using (source.Subscribe(observer))
         {
             Assert.AreEqual(2, observer.Messages.Count, "Source is not a single value sequence.");
-            Assert.AreEqual(NotificationKind.OnCompleted, observer.Messages[1].Value.Kind, "Only two message were expected : OnNext(expected) and OnCompleted.");
+            Assert.AreEqual(NotificationKind.OnCompleted, observer.Messages[1].Value.Kind, "Only two notifications were expected : OnNext(expected) and OnCompleted.");
             Assert.AreEqual(expected, observer.Messages[0].Value.Value, "Value from sequence does not match expected.");
         }
     }
