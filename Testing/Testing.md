@@ -59,7 +59,7 @@ public static class TestableObservableEx
         var observer = testScheduler.CreateObserver<T>();
         using (source.Subscribe(observer))
         {
-            Assert.AreEqual(1, observer.Messages.Count, "Source is not a single value sequence.");
+            Assert.AreEqual(1, observer.Messages.Count, "Source is not an empty sequence.");
             Assert.AreEqual(NotificationKind.OnCompleted, observer.Messages[0].Value.Kind, "Only one notification was expected : OnCompleted.");
         }
     }
