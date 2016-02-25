@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reactive;
 using System.Reactive.Linq;
@@ -9,72 +10,52 @@ namespace RxCookbook.INPC
     {
         private const int MessageCount = 1000 * 1000 * 100;
 
+        private static readonly Dictionary<string, Func<ThroughputTestResult>> TestCandidates = new Dictionary
+            <string, Func<ThroughputTestResult>>
+        {
+            //Listed in roughly the order of performance. Fastest first.
+            { "Optimised Events. No Rx", RunOptInpcEvt},
+            { "Standard Events. No Rx.", RunInpcEvt},
+            { "Optimised Events, Rx with no property name filter", RunUnitInpcObs},
+            { "Optimized Events, Optimised Rx, no Expressions", RunExtremeInpcObs},
+            { "Optimized Events, Optimised Rx, Dynamic compiled expressions", RunExtremeCompiledInpcObs},
+            { "Optimized Events, Optimised Rx", RunNoAllocInpcObs},
+            { "Optimized Rx", RunOptInpcObs},
+            { "Standard Rx INPC", RunStdInpcObs},
+            { "Standard Rx INPC with C#6", RunStdInpcObsWithCSharp6},
+        };
+
         public static void Run()
         {
             //Avoid any warm up cost and also attempt to get the code JIT compiled -LC
-            for (int i = 0; i < 3; i++)
+            var longestTestName = 0;
+            var counter = 0;
+            Console.Write("Priming for JIT..");
+            foreach (var testCandidate in TestCandidates)
             {
-                RunStdInpcObs();
+                Console.Write(".");
+                longestTestName = Math.Max(longestTestName, testCandidate.Key.Length);
+                for (int i = 0; i < 1; i++)
+                {
+                    counter += testCandidate.Value().Gen0Collections;
+                }
             }
-            for (int i = 0; i < 3; i++)
+            Console.WriteLine();
+            Console.WriteLine("Cleaning env");
+            Program.Clean();
+            Console.WriteLine("Running tests...");
+            foreach (var testCandidate in TestCandidates)
             {
-                RunStdInpcObsWithCSharp6();
-            }
-            for (int i = 0; i < 3; i++)
-            {
-                RunOptInpcObs();
-            }
-            for (int i = 0; i < 3; i++)
-            {
-                RunExtremeInpcObs();
-            }
-            for (int i = 0; i < 3; i++)
-            {
-                RunInpcEvt();
-            }
-            for (int i = 0; i < 3; i++)
-            {
-                RunOptInpcEvt();
+                var result = testCandidate.Value();
+                var stringformat = @"{0," + (longestTestName + 1) + "}- msg:{1}  GCs: {2,4}  Elapsed: {3}";
+                Console.WriteLine(stringformat, testCandidate.Key, result.Messages, result.Gen0Collections, result.Elapsed);
+                Program.Clean();
             }
             Program.Clean();
-            var stdResult = RunStdInpcObs();
-            Program.Clean();
-            var cs6Result = RunStdInpcObsWithCSharp6();
-            Program.Clean();
-            var optResult = RunOptInpcObs();
-            Program.Clean();
-            var noAllocObsResult = RunNoAllocInpcObs();
-            Program.Clean();
-            var extremeResult = RunExtremeInpcObs();
-            Program.Clean();
-            var dynamCompileResult = RunExtremeCompiledInpcObs();
-            Program.Clean();
-            var evtResult = RunInpcEvt();
-            Program.Clean();
-            var optEvtResult = RunOptInpcEvt();
-            Program.Clean();
-            var obsNullResult = RunNullInpcObs();
-            Program.Clean();
-            var obsUnitResult = RunUnitInpcObs();
-            Program.Clean();
-
-            Console.WriteLine("Standard  - msg:{0}  GCs: {1}  Elapsed: {2} ", stdResult.Messages, stdResult.Gen0Collections, stdResult.Elapsed);
-            Console.WriteLine("C#6       - msg:{0}  GCs: {1}  Elapsed: {2} ", cs6Result.Messages, cs6Result.Gen0Collections, cs6Result.Elapsed);
-            Console.WriteLine("Optimized - msg:{0}  GCs: {1}  Elapsed: {2} ", optResult.Messages, optResult.Gen0Collections, optResult.Elapsed);
-            Console.WriteLine("noAlloc   - msg:{0}  GCs: {1}  Elapsed: {2} ", noAllocObsResult.Messages, noAllocObsResult.Gen0Collections, noAllocObsResult.Elapsed);
-            Console.WriteLine("extreme   - msg:{0}  GCs: {1}  Elapsed: {2} ", extremeResult.Messages, extremeResult.Gen0Collections, extremeResult.Elapsed);
-            Console.WriteLine("dynamComp - msg:{0}  GCs: {1}  Elapsed: {2} ", dynamCompileResult.Messages, dynamCompileResult.Gen0Collections, dynamCompileResult.Elapsed);
-            Console.WriteLine("obsNull   - msg:{0}  GCs: {1}  Elapsed: {2} ", obsNullResult.Messages, obsNullResult.Gen0Collections, obsNullResult.Elapsed);
-            Console.WriteLine("obsUnit   - msg:{0}  GCs: {1}  Elapsed: {2} ", obsUnitResult.Messages, obsUnitResult.Gen0Collections, obsUnitResult.Elapsed);
-            Console.WriteLine("Evt       - msg:{0}  GCs: {1}  Elapsed: {2} ", evtResult.Messages, evtResult.Gen0Collections, evtResult.Elapsed);
-            Console.WriteLine("Opt Evt   - msg:{0}  GCs: {1}  Elapsed: {2} ", optEvtResult.Messages, optEvtResult.Gen0Collections, optEvtResult.Elapsed);
-
             Console.WriteLine();
             Console.WriteLine("Complete.");
-            Console.ReadLine();
         }
 
-        
         private static ThroughputTestResult RunStdInpcObs()
         {
             var count = 0;
@@ -91,6 +72,7 @@ namespace RxCookbook.INPC
                 return result;
             }
         }
+
         private static ThroughputTestResult RunStdInpcObsWithCSharp6()
         {
             var count = 0;
@@ -146,7 +128,7 @@ namespace RxCookbook.INPC
         {
             var count = 0;
             var person = new PersonOpt();
-            using (person.OnPropertyChangesOpt("Age", p => p.Age)
+            using (person.OnPropertyChangesOpt(nameof(person.Age), p => p.Age)
                          .Subscribe(newAge => count = newAge))
             {
                 var result = new ThroughputTestResult(1, MessageCount);
@@ -165,24 +147,6 @@ namespace RxCookbook.INPC
             var person = new PersonOpt();
             using (person.OnPropertyChangesCompiled(p => p.Age)
                          .Subscribe(newAge => count = newAge))
-            {
-                var result = new ThroughputTestResult(1, MessageCount);
-                for (int i = 0; i < MessageCount; i++)
-                {
-                    person.Age = i;
-                }
-                result.Dispose();
-                return result;
-            }
-        }
-
-        private static ThroughputTestResult RunNullInpcObs()
-        {
-            var count = 0;
-            var person = new PersonOpt();
-            using (person.ToObservable()
-                         .Select(_ => Unit.Default)
-                         .Subscribe(newAge => count++))
             {
                 var result = new ThroughputTestResult(1, MessageCount);
                 for (int i = 0; i < MessageCount; i++)
