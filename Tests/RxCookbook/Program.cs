@@ -6,10 +6,10 @@ namespace RxCookbook
     {
         static void Main(string[] args)
         {
-            //INPC.InpcPerfTests.Run();
+            INPC.InpcPerfTests.Run();
             //LoadShedding.ObserveLatestOnPerfTests.Run();
             //DisposableOptimisation.StressTester.Run();
-            DisposableOptimisation.ThroughputTester.Run();
+            //DisposableOptimisation.ThroughputTester.Run();
             Console.ReadLine();
         }
 

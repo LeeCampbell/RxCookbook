@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RxCookbook.INPC
 {
-    class InpcPerfTests
+    internal static class InpcPerfTests
     {
         private const int MessageCount = 1000 * 1000 * 100;
 
@@ -19,6 +15,10 @@ namespace RxCookbook.INPC
             for (int i = 0; i < 3; i++)
             {
                 RunStdInpcObs();
+            }
+            for (int i = 0; i < 3; i++)
+            {
+                RunStdInpcObsWithCSharp6();
             }
             for (int i = 0; i < 3; i++)
             {
@@ -39,6 +39,8 @@ namespace RxCookbook.INPC
             Program.Clean();
             var stdResult = RunStdInpcObs();
             Program.Clean();
+            var cs6Result = RunStdInpcObsWithCSharp6();
+            Program.Clean();
             var optResult = RunOptInpcObs();
             Program.Clean();
             var noAllocObsResult = RunNoAllocInpcObs();
@@ -57,6 +59,7 @@ namespace RxCookbook.INPC
             Program.Clean();
 
             Console.WriteLine("Standard  - msg:{0}  GCs: {1}  Elapsed: {2} ", stdResult.Messages, stdResult.Gen0Collections, stdResult.Elapsed);
+            Console.WriteLine("C#6       - msg:{0}  GCs: {1}  Elapsed: {2} ", cs6Result.Messages, cs6Result.Gen0Collections, cs6Result.Elapsed);
             Console.WriteLine("Optimized - msg:{0}  GCs: {1}  Elapsed: {2} ", optResult.Messages, optResult.Gen0Collections, optResult.Elapsed);
             Console.WriteLine("noAlloc   - msg:{0}  GCs: {1}  Elapsed: {2} ", noAllocObsResult.Messages, noAllocObsResult.Gen0Collections, noAllocObsResult.Elapsed);
             Console.WriteLine("extreme   - msg:{0}  GCs: {1}  Elapsed: {2} ", extremeResult.Messages, extremeResult.Gen0Collections, extremeResult.Elapsed);
@@ -66,6 +69,8 @@ namespace RxCookbook.INPC
             Console.WriteLine("Evt       - msg:{0}  GCs: {1}  Elapsed: {2} ", evtResult.Messages, evtResult.Gen0Collections, evtResult.Elapsed);
             Console.WriteLine("Opt Evt   - msg:{0}  GCs: {1}  Elapsed: {2} ", optEvtResult.Messages, optEvtResult.Gen0Collections, optEvtResult.Elapsed);
 
+            Console.WriteLine();
+            Console.WriteLine("Complete.");
             Console.ReadLine();
         }
 
@@ -74,6 +79,22 @@ namespace RxCookbook.INPC
         {
             var count = 0;
             var person = new Person();
+            using (person.OnPropertyChanges(p => p.Age)
+                         .Subscribe(newAge => count = newAge))
+            {
+                var result = new ThroughputTestResult(1, MessageCount);
+                for (int i = 0; i < MessageCount; i++)
+                {
+                    person.Age = i;
+                }
+                result.Dispose();
+                return result;
+            }
+        }
+        private static ThroughputTestResult RunStdInpcObsWithCSharp6()
+        {
+            var count = 0;
+            var person = new Person_cSharp6();
             using (person.OnPropertyChanges(p => p.Age)
                          .Subscribe(newAge => count = newAge))
             {
