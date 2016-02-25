@@ -15,7 +15,7 @@ namespace RxCookbook.INPC
         {
             //Listed in roughly the order of performance. Fastest first.
             { "Optimised Events. No Rx", RunOptInpcEvt},
-            { "Standard Events. No Rx.", RunInpcEvt},
+            { "Standard Events. No Rx", RunInpcEvt},
             { "Optimised Events, Rx with no property name filter", RunUnitInpcObs},
             { "Optimized Events, Optimised Rx, no Expressions", RunExtremeInpcObs},
             { "Optimized Events, Optimised Rx, Dynamic compiled expressions", RunExtremeCompiledInpcObs},
