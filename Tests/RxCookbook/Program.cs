@@ -1,6 +1,17 @@
 ﻿using System;
 using System.Diagnostics;
 
+/*
+    Currently we have a dependency on HdrHistogram.NET. This currently does not have a Nuget 
+    package, but I am working on it!
+
+    To run you will need to get a copy of the source from https://github.com/LeeCampbell/HdrHistogram.NET 
+    and drop the compiled (RELEASE Build) into the .\packages\ folder (with all the other nuget 
+    packages).
+*/
+
+
+
 namespace RxCookbook
 {
     internal class Program
