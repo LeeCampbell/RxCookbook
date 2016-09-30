@@ -50,7 +50,6 @@ public static async Task ReadFile(string url, IProgress<double> progressReporter
 	double totalBytes = new FileInfo(url).Length;
 	var bufferSize = 1024 * 4; //4k;
 	var buffer = new byte[bufferSize];
-	var offset = 0;
 	var bytesRead = 0;
 	var totalBytesRead = 0L;
 
@@ -58,7 +57,7 @@ public static async Task ReadFile(string url, IProgress<double> progressReporter
 	{
 		do
 		{
-			bytesRead = await fs.ReadAsync(buffer, offset, bufferSize);
+			bytesRead = await fs.ReadAsync(buffer, 0, bufferSize);
 			//Do something here with the data that was just read.
 			totalBytesRead += bytesRead;
 			var fractionDone = totalBytesRead / totalBytes;

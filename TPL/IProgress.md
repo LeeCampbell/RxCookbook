@@ -11,7 +11,7 @@ public interface IProgress<in T>
 }
 ```
 
-As Rx is a library built on callbacks, it seems natural to be able to get and `IObservable<T>` output from a library that implements the `IProgress<T>` pattern.
+As Rx is a library built on callbacks, it seems natural to be able to get an `IObservable<T>` output from a library that implements the `IProgress<T>` pattern.
 
 Here is a simple sample of a method using the IProgress pattern.
 
@@ -26,7 +26,7 @@ private void Solve(IProgress<int> progress)
 }
 ```
 
-To see how we might consumer this method, t is first useful to note that `Progress<T>` is a default implementation of the `IProgress<T>` interface.
+To see how we might consume this method, it is first useful to note that `Progress<T>` is a default implementation of the `IProgress<T>` interface.
 
 So to get a trail of periods printed to our console while this is running we could call the `Solve` method as such:
 
@@ -43,7 +43,7 @@ Which would output.
 
 As we can see that that `Progress<T>` implementation is just taking a delegate, we can follow suit and use this class to help us transition to `IObservable<T>`.
 
-We could simply wrap our `Solve` method with an `Observable.Create` as such to get us off the ground.
+We could simply wrap our `Solve` method with an `Observable.Create` to get us off the ground.
 
 ```csharp
 Observable.Create<T>(obs =>
@@ -99,7 +99,6 @@ public static async Task ReadFile(string url, IProgress<double> progressReporter
 	double totalBytes = new FileInfo(url).Length;
 	var bufferSize = 1024 * 4; //4k;
 	var buffer = new byte[bufferSize];
-	var offset = 0;
 	var bytesRead = 0;
 	var totalBytesRead = 0L;
 
@@ -107,10 +106,10 @@ public static async Task ReadFile(string url, IProgress<double> progressReporter
 	{
 		do
 		{
-			bytesRead = await fs.ReadAsync(buffer, offset, bufferSize);
+			bytesRead = await fs.ReadAsync(buffer, 0, bufferSize);
+			//Do something here with the data that was just read.
 			totalBytesRead += bytesRead;
 			var fractionDone = totalBytesRead / totalBytes;
-			//Do something here with the data that was just read.
 			progressReporter.Report(fractionDone);
 		} while (bytesRead > 0);
 	}
@@ -121,7 +120,7 @@ You can see here that it knows nothing about Rx.
 It is however using `async`/`await` features.
 The following code can offer us a nice bridge between the two styles of code (`async`/`await` and Rx).
 
-As before we will wrap our `Task` with `Observable.Create`.
+As before, we will wrap our `Task` with `Observable.Create`.
 Here we jump straight to making it a factory method.
 
 ```csharp
