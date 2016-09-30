@@ -1,4 +1,4 @@
-_WIP: Place holder for comparision between TPL/AsyncAwait and Rx_
+_WIP: Place holder for comparison between TPL/AsyncAwait and Rx_
 
 TODO:
  * Discuss What the TPL is
@@ -12,7 +12,7 @@ TODO:
   * Eager semantics.
   * Allows for declarative coding of concurrent solutions
   * Continuation and error handling support
-  
+
  * Discuss what Rx is
  * Discuss when to use TPL
  * Discuss when to use Rx
@@ -22,5 +22,3 @@ TODO:
    * When it is less obvious, but could be useful
    * Point out the _perils_ of doing so
    * Point out the benefits of doing so
-   
- 

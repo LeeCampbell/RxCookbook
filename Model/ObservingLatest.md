@@ -6,7 +6,7 @@ There are numerous cases where you will be consuming an observable sequence, but
 Sometimes you just want to have the latest value and ignore any other values that may have arrived between your last consumed value and the most recently produced value.
 
 Imagine that for example we have a WPF application that is displaying fast moving pricing data.
-Consider the scenario where we recieve 5 prices in 100ms.
+Consider the scenario where we receive 5 prices in 100ms.
 
     price1 1.01
     price2 1.02
@@ -14,13 +14,13 @@ Consider the scenario where we recieve 5 prices in 100ms.
     price4 1.04
     price5 1.05
 
-When we recieve the first price, we display it on the UI.
+When we receive the first price, we display it on the UI.
 While the dispatcher is rendering this update, it is tasked with doing some other work before our next price arrives.
 If this work takes some time, i.e. over 100ms we will have 4 other prices queued up to display.
 Once the dispatcher is ready to show the next price (1.02), the price is actually out of date.
 We want to display the most recent price (1.05).
 
-The solution i have used before is to take pull apart the `ObserveOn(IScheduler)` method and replace the internal queue with a single backing field.
+The solution I have used before is to take pull apart the `ObserveOn(IScheduler)` method and replace the internal queue with a single backing field.
 
 ```csharp
 public static IObservable<TSource> ObserveLatestOn<TSource>(this IObservable<TSource> source, IScheduler scheduler)
@@ -89,5 +89,3 @@ public static IObservable<TSource> ObserveLatestOn<TSource>(this IObservable<TSo
 
 ###Links
 http://social.msdn.microsoft.com/Forums/en-US/rx/thread/bbcc1af9-64b4-456b-9038-a540cb5f5de5
-
-
