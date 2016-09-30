@@ -17,6 +17,8 @@
 
 void Main()
 {
+	//The Progress<T> type is really where you want SynchronizationContext managed for you.
+	//	We use a lighterwight version internally in ObservableProgress factory methods.
 	Solve(new Progress<int>(i=>Console.Write(".")));
 	Console.WriteLine("Done");
 	
@@ -72,7 +74,7 @@ public static class ObservableProgress
 	{
 		return Observable.Create<T>(obs =>
 		{
-			action(new Progress<T>(obs.OnNext));
+			action(new DelegateProgress<T>(obs.OnNext));
 			obs.OnCompleted();
 			//No apparent cancellation support.
 			return Disposable.Empty;
@@ -83,10 +85,24 @@ public static class ObservableProgress
 	{
 		return Observable.Create<T>(async obs =>
 		{
-			await action(new Progress<T>(obs.OnNext));
+			await action(new DelegateProgress<T>(obs.OnNext));
 			obs.OnCompleted();
 			//No apparent cancellation support. Add an overload that accepts a CancellationToken instead
 			return Disposable.Empty;
 		});
+	}
+	
+	private sealed class DelegateProgress<T> : IProgress<T>
+	{
+		private readonly Action<T> _report;
+		public DelegateProgress(Action<T> report)
+		{
+			if (report == null) throw new ArgumentNullException();
+			_report = report;
+		}
+		public void Report(T value)
+		{
+			_report(value);
+		}
 	}
 }
