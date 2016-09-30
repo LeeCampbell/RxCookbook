@@ -432,7 +432,7 @@ Output:
 
     OnPropertyChanges →Dave
 
-The full [LinqPad](http://www.linqpad.net) sample in available as [PropertyChangedConvention.linq](PropertyChangedConvention.linq)
+The full [LinqPad](http://www.linqpad.net) sample is available as [PropertyChangedConvention.linq](PropertyChangedConvention.linq)
 
 ## Excess garbage
 The above methods are functionally complete, however they can perform unnecessary memory allocations.
@@ -515,4 +515,3 @@ It can be useful for building cross platform products with Xamarin (WPF, iOS, An
 Allan Lindqvist's post [Observable from any property in a INotifyPropertyChanged class](http://social.msdn.microsoft.com/Forums/en-US/rx/thread/36bf6ecb-70ea-4be3-aa35-b9a9cbc9a078) on the Rx MSDN Forums.
 
 Richard Szalay's post [GetPropertyValues: a strongly typed reactive wrapper around INotifyPropertyChanged](http://social.msdn.microsoft.com/Forums/en-US/rx/thread/2fc8ab3c-28ed-45a9-a96f-59133a3d103c) on the Rx MSDN Forums.
-
