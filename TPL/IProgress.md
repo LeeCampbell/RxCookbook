@@ -43,6 +43,30 @@ Which would output.
 
 As we can see that that `Progress<T>` implementation is just taking a delegate, we can follow suit and use this class to help us transition to `IObservable<T>`.
 
+However, the `Progress<T>` implementation is really designed for use in GUIs as internally it will do `SynchronizationContext` coordination for you.
+We don't really want that as we will use Rx to do all of our coordination for us explicitly.
+
+>Thanks to [Stephen Cleary](http://blog.stephencleary.com/2012/02/reporting-progress-from-async-tasks.html) for pointing out the in's and out's of IProgress.
+
+So instead we will create a super simple implementation ourselves.
+
+```csharp
+class DelegateProgress<T> : IProgress<T>
+{
+	private readonly Action<T> _report;
+	public DelegateProgress(Action<T> report)
+	{
+		if (report == null) throw new ArgumentNullException();
+		_report = report;
+	}
+	public void Report(T value)
+	{
+		_report(value);
+	}
+}
+```
+
+
 We could simply wrap our `Solve` method with an `Observable.Create` to get us off the ground.
 
 ```csharp
@@ -69,7 +93,7 @@ public static class ObservableProgress
 	{
 		return Observable.Create<T>(obs =>
 		{
-			action(new Progress<T>(obs.OnNext));
+			action(new DelegateProgress<T>(obs.OnNext));
 			obs.OnCompleted();
 			//No apparent cancellation support.
 			return Disposable.Empty;
@@ -128,7 +152,7 @@ public static IObservable<T> CreateAsync<T>(Func<IProgress<T>, Task> action)
 {
   return Observable.Create<T>(async obs =>
   {
-    await action(new Progress<T>(obs.OnNext));
+    await action(new DelegateProgress<T>(obs.OnNext));
     obs.OnCompleted();
     //No apparent cancellation support. Add an overload that accepts a CancellationToken instead
     return Disposable.Empty;
@@ -183,3 +207,11 @@ Done
 You obviously have the full power of Rx at your disposal now, including `ObserveOn` and `SubscribeOn` to ensure your long running processes are running on the correct thread (scheduler) and that progress is reported to you on the correct scheduler too.
 
 The full [LinqPad](http://www.linqpad.net) sample is available as [IProgressSample.linq](IProgressSample.linq)
+
+## Edit notes
+Stephen Cleary [pointed out](https://aspnetcore.slack.com/archives/rx/p1475244844000443) to me that Progress<T> wasn't appropriate.
+>`Progress<T>` is not appropriate in a lot of scenarios (including Console apps and SignalR); it's really intended just for use with UI apps.
+
+After I was aware, I swapped out the implementation for the new `DelegateProgress<T>` implementation.
+It had the nice side effect of making the code run faster.
+From around 11.1 seconds to 9.9 seconds. 
