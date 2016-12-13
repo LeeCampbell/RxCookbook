@@ -17,6 +17,7 @@ void Main()
 {
 	IssuesRequestEachTimePeriod();
 	IssuesRequestEachTimePeriodAfterPreviousProcessingIsComplete();
+	ErrorsDontStopThePolling();
 }
 
 // Define other methods and classes here
@@ -72,6 +73,32 @@ public void IssuesRequestEachTimePeriodAfterPreviousProcessingIsComplete()
 		ReactiveTest.OnNext(15.Seconds(), 0L),
 		ReactiveTest.OnNext(30.Seconds(), 0.Seconds())
 	);
+}
+
+public void ErrorsDontStopThePolling()
+{
+	var testScheduler = new TestScheduler();
+	var period = TimeSpan.FromSeconds(10);
+
+	var responder = Observable.Create<string>(obs => {
+		if(testScheduler.Now.Ticks < TimeSpan.FromSeconds(15).Ticks)
+			return Observable.Return("Hello").Subscribe(obs);
+		else if(testScheduler.Now.Ticks < TimeSpan.FromSeconds(25).Ticks)
+			return Observable.Throw<String>(new Exception("boom")).Subscribe(obs);
+		return Observable.Return("Back again").Subscribe(obs);
+	});
+
+	var observer = testScheduler.CreateObserver<string>();
+	responder.Poll(period, testScheduler)
+		.Subscribe(observer);
+
+	testScheduler.AdvanceTo(30.Seconds());
+
+	ReactiveAssert.AssertEqual(observer.Messages,
+		ReactiveTest.OnNext(10.Seconds(), "Hello"),
+		ReactiveTest.OnNext(30.Seconds(), "Back again")
+	);
+
 }
 
 #endregion
