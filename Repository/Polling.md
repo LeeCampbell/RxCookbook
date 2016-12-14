@@ -127,7 +127,7 @@ Requests can fail.
 We should be resilient to these failures, especially if we plan on polling a system.
 It is much more likely for a polling system to experience downstream failures than system that just issues single requests occasionally.
 
-In this test, I return successfully, then fail, the return successfully.
+In this test, I return successfully, then fail, then return successfully.
 I expect (in this implementation) that the failure is swallowed and the polling continues.
 
 ```
@@ -259,7 +259,7 @@ return Observable.Timer(period, scheduler)
 If our request takes too long to respond, then we don't want to surrender to waiting indefinitely.
 In the spirit of the Fallacies of Distributed Computing, we don't want our system to be at the mercy of the dependency sub-system.
 There are numerous reasons that a request could time out ranging from local system resource exhaustion, to network failures, the service being under load or perhaps being patched.
-Regardless of the reasons, our Polling operation should be resilient to these extended periods of silence.
+Regardless of the reasons, our polling operation should be resilient to these extended periods of silence.
 
 In this case, we will not have to alter our API.
 Instead it is a concern of the provided `IObservable<T>`.
@@ -271,6 +271,155 @@ Consumers of our API should apply the `Timeout` operator to the provided sequenc
      .Poll(TimeSpan.FromSeconds(30), scheduler)
 ```
 
+
+#Final implementation
+
+The full [LinqPad](http://www.linqpad.net) sample in available as [Polling.linq](Polling.linq)
+
+The final implementation is below.
+
+```
+public static class ObservableExtensions
+{
+	/// <summary>
+	/// Periodically repeats the observable sequence exposing a responses or failures.
+	/// </summary>
+	/// <typeparam name="T">The type of the sequence response values.</typeparam>
+	/// <param name="source">The source observable sequence to re-subscribe to after each <paramref name="period"/>.</param>
+	/// <param name="period">The period of time to wait before subscribing to the <paramref name="source"/> sequence. Subsequent subscriptions will occur this period after the previous sequence completes.</param>
+	/// <param name="scheduler">The <see cref="IScheduler"/> to use to schedule the polling.</param>
+	/// <returns>Returns an infinite observable sequence of values or errors.</returns>
+	public static IObservable<Try<T>> Poll<T>(this IObservable<T> source, TimeSpan period, IScheduler scheduler)
+	{
+		return Observable.Timer(period, scheduler)
+					.SelectMany(_ => source)    //Flatten the response sequence.
+					.Select(Try<T>.Create)      //Project successful values to the Try<T> return type.
+					.Catch<Try<T>, Exception>(ex => Observable.Return(Try<T>.Fail(ex))) //Project exceptions to the Try<T> return type
+					.Repeat();  //Loop
+	}
+}
+public abstract class Try<T>
+    {
+        private Try()
+        {
+        }
+
+        public static Try<T> Create(T value)
+        {
+            return new Success(value);
+        }
+
+        public static Try<T> Fail(Exception value)
+        {
+            return new Error(value);
+        }
+
+        public abstract TResult Switch<TResult>(Func<T, TResult> caseValue, Func<Exception, TResult> caseError);
+        public abstract void Switch(Action<T> caseValue, Action<Exception> caseError);
+
+        private sealed class Success : Try<T>, IEquatable<Success>
+        {
+            private readonly T _value;
+
+            public Success(T value)
+            {
+                _value = value;
+            }
+
+            public override TResult Switch<TResult>(Func<T, TResult> caseValue, Func<Exception, TResult> caseError)
+            {
+                return caseValue(_value);
+            }
+
+            public override void Switch(Action<T> caseValue, Action<Exception> caseError)
+            {
+                caseValue(_value);
+            }
+
+            public bool Equals(Success other)
+            {
+                if (ReferenceEquals(other, this))
+                    return true;
+                if (other == null)
+                    return false;
+                return EqualityComparer<T>.Default.Equals(_value, other._value);
+            }
+
+            public override bool Equals(object obj)
+            {
+                return Equals(obj as Success);
+            }
+
+            public override int GetHashCode()
+            {
+                return EqualityComparer<T>.Default.GetHashCode(_value);
+            }
+
+            public override string ToString()
+            {
+                return string.Format(CultureInfo.CurrentCulture, "Success({0})", _value);
+            }
+        }
+
+        private sealed class Error : Try<T>, IEquatable<Error>
+        {
+            private readonly Exception _exception;
+
+            public Error(Exception exception)
+            {
+                if (exception == null)
+                    throw new ArgumentNullException(nameof(exception));
+                _exception = exception;
+            }
+
+            public override TResult Switch<TResult>(Func<T, TResult> caseValue, Func<Exception, TResult> caseError)
+            {
+                return caseError(_exception);
+            }
+
+            public override void Switch(Action<T> caseValue, Action<Exception> caseError)
+            {
+                caseError(_exception);
+            }
+
+            public bool Equals(Error other)
+		{
+			if (ReferenceEquals(other, this))
+				return true;
+			if (other == null)
+				return false;
+			return Equals(_exception, other._exception);
+		}
+		private static bool Equals(Exception a, Exception b)
+		{
+			if (a == null && b == null)
+				return true;
+			if (a == null || b == null)
+				return false;
+			if (a.GetType() != b.GetType())
+				return false;
+			if (!string.Equals(a.Message, b.Message))
+				return false;
+			return Equals(a.InnerException, b.InnerException);
+		}
+
+		public override bool Equals(object obj)
+		{
+			return Equals(obj as Error);
+		}
+
+		public override int GetHashCode()
+		{
+			return EqualityComparer<Exception>.Default.GetHashCode(_exception);
+		}
+
+		public override string ToString()
+		{
+			return string.Format(CultureInfo.CurrentCulture, "Error({0})", _exception);
+		}
+	}
+}
+```
 
 See also:
  * http://www.enterpriseintegrationpatterns.com/patterns/conversation/Polling.html
