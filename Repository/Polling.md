@@ -29,7 +29,7 @@ Thus, I think my API will be an Extension method over an `IObservable<T>`.
 
 The extension method will need to take the source `IObservable<T>`, a `TimeSpan` to specify the period to poll, and an `IScheduler` to control time.
 
-```
+```csharp
 public static IObservable<T> Poll<T>(this IObservable<T> request, TimeSpan period, IScheduler scheduler)
 {
    ...
@@ -40,7 +40,7 @@ Now to our tests.
 
 ### Issues a request each time period
 
-```
+```csharp
 public void IssuesRequestEachTimePeriod()
 {
 	var period = TimeSpan.FromSeconds(10);
@@ -63,7 +63,7 @@ public void IssuesRequestEachTimePeriod()
 
 A fairly simple implementation using `Observable.Interval` and `SelectMany` works well here.
 
-```
+```csharp
 public static IObservable<T> Poll<T>(this IObservable<T> request, TimeSpan period, IScheduler scheduler)
 {
     return Observable.Interval(period, scheduler)
@@ -89,7 +89,7 @@ With this in mind, I prefer to opt for the simpler tactic of only starting to re
 This test shows a request that is taking 5seconds to respond where we have a polling interval of 10seconds.
 This means we should receive responses at times 15s and 30s.
 
-```
+```csharp
 public void IssuesRequestEachTimePeriodAfterPreviousProcessingIsComplete()
 {
 	var testScheduler = new TestScheduler();
@@ -113,7 +113,7 @@ public void IssuesRequestEachTimePeriodAfterPreviousProcessingIsComplete()
 Now we will need to update our implementation to get this test to pass.
 Here we can make effective use of `Observable.Timer` combined with `Repeat`.
 
-```
+```csharp
 public static IObservable<T> Poll<T>(this IObservable<T> request, TimeSpan period, IScheduler scheduler)
 {
     return Observable.Timer(period, scheduler)
@@ -130,7 +130,7 @@ It is much more likely for a polling system to experience downstream failures th
 In this test, I return successfully, then fail, then return successfully.
 I expect (in this implementation) that the failure is swallowed and the polling continues.
 
-```
+```csharp
 public void ErrorsDontStopThePolling()
 {
 	var testScheduler = new TestScheduler();
@@ -159,7 +159,7 @@ public void ErrorsDontStopThePolling()
 
 Now we only need to simply add a `Retry()` operator here.
 
-```
+```csharp
 public static IObservable<T> Poll<T>(this IObservable<T> request, TimeSpan period, IScheduler scheduler)
 {
     return Observable.Timer(period, scheduler)
@@ -182,7 +182,7 @@ As we will not be throwing the exception or `OnError`ing it, the pipeline will s
 
 The `Try<T>` type definition is effectively
 
-```
+```csharp
 public class Try<T>
 {
 	public TResult Switch<TResult>(Func<T, TResult> caseValue, Func<Exception, TResult> caseError);
@@ -191,7 +191,8 @@ public class Try<T>
 ```
 
 Which means our updated `Poll` signature is now
-```
+
+```csharp
 public static IObservable<Try<T>> Poll<T>(this IObservable<T> request, TimeSpan period, IScheduler scheduler)
 {
   ...
@@ -200,7 +201,7 @@ public static IObservable<Try<T>> Poll<T>(this IObservable<T> request, TimeSpan 
 
 We update our previous tests to use the `Try<T>.Switch` method, using a dummy value of `-1` for exceptions.
 
-```
+```csharp
 request.Poll(period, testScheduler)
 		.Select(i=>i.Switch(v=>v, ex=>-1))
 		.Subscribe(observer);
@@ -208,7 +209,7 @@ request.Poll(period, testScheduler)
 
 Our new test will now have a request that will return successfully on the first and 3rd calls, but fail for the 2nd call.
 
-```
+```csharp
 public void ErrorsDontStopThePolling()
 {
 	var testScheduler = new TestScheduler();
@@ -243,7 +244,7 @@ We now need to update our implementation to both match the new signature and sat
 Values will be exposed from a `Select` operator via the new `Try<T>.Create` factory method.
 Exceptions will be caught by the `Catch` operator and converted to a `Try<T>` with the `Try<T>.Fail` factory method.
 
-```
+```csharp
 public static IObservable<Try<T>> Poll<T>(this IObservable<T> request, TimeSpan period, IScheduler scheduler)
 {
 return Observable.Timer(period, scheduler)
@@ -265,7 +266,7 @@ In this case, we will not have to alter our API.
 Instead it is a concern of the provided `IObservable<T>`.
 Consumers of our API should apply the `Timeout` operator to the provided sequence before applying the `Poll` operator. For example:
 
-```
+```csharp
  mySource
      .Timeout(TimeSpan.FromSeconds(5), scheduler)
      .Poll(TimeSpan.FromSeconds(30), scheduler)
@@ -278,7 +279,7 @@ The full [LinqPad](http://www.linqpad.net) sample in available as [Polling.linq]
 
 The final implementation is below.
 
-```
+```csharp
 public static class ObservableExtensions
 {
 	/// <summary>

@@ -1,4 +1,4 @@
-#Generating Delta value
+# Generating Delta value
 
 If you are looking to enrich your data from an observable sequence with delta values then this can be done quite easily with Rx.
 
@@ -16,7 +16,7 @@ delta = currentValue - previousValue
 
 There are several ways we can do this. Here we will cover using overlapping windows with `Buffer`, a running accumulator with `Scan` or merging the current sequence with a copy of sequence delayed by 1 using `Publish`, `Zip` and `Skip`.
 
-##Buffer
+## Buffer
 A very simple option is to use the overload of the `Buffer` that allows you to specify the buffer size _and_ the size of the stride to take.
 Normally you would pass just an integer value or a timespan to the `Buffer` operator.
 In these overload, the values in each produced buffer do not overlap i.e. for `Buffer(5)` you would get the first values values produced as single `IList<T>` and then once the tenth value was produced from the source, the buffer would give the next 5 values in another `IList<T>`.
@@ -34,7 +34,7 @@ var deltas = source.Buffer(2, 1)
 Note that this will not produce a value until at least two values have been produced.
 This can be remedied by using the `StartWith` to provide a seed value.
 
-##Scan
+## Scan
 
 An alternate solution is to use the `Scan` operator.
 The `Scan` operator is often used for producing running aggregate values e.g. running totals.
@@ -50,7 +50,7 @@ This is arguably more complex solution than the `Buffer` option.
 This however does not suffer the same limitation as the `Buffer` algorithm, and can yield values as soon as the first value from the source is produced (without the need for `StartWith`).
 
 
-##ZipSkip
+## ZipSkip
 
 The _ZipSkip_ algorithm is popular however it is more difficult to learn, and requires more effort to share subscriptions.
 Effectively the _ZipSkip_ algorithm will `Zip` the source sequence with the source sequence again but skipping the first value.
@@ -87,14 +87,3 @@ var previousValues = source;
 var currentValues = previousValues.Skip(1);
 var deltas = previousValues.Zip(currentvalues, (prev, curr) => curr - prev)
 ```
-
-
-
-
-
-
-
-
-
-
-
