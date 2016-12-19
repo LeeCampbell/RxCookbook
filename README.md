@@ -3,6 +3,11 @@ RxCookbook
 
 Collection of recipes and snippets helping you create useful Rx code
 
+## Testing Rx
+Before we get too excited with Rx, it is a good idea to know how to verify your code first.
+
+[Testing Rx](Testing/Testing.md)
+
 ## Rx in your Model
 See how you can use Rx in your regular domain.
 
