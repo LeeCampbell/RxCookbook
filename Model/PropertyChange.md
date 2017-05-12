@@ -1,11 +1,11 @@
-#Observing Property changes
+# Observing Property changes
 
 The .NET framework offers several ways to propagate property changes from an Object Model.
 The most common are using the `INotifyPropertyChanged` interface, _DependencyProperties_ in WPF, or, using the convention of having a property with a matching property changed event.
 Often property change events are used in GUI applications to let the UI know when to automatically redraw.
 We can however leverage property change patterns outside of GUI software for what ever reasons we see fit.
 
-##INotifyPropertyChanged
+## INotifyPropertyChanged
 Probably the most common way to expose property changes is by implementing the `System.ComponentModel.INotifyPropertyChanged` interface.
 This interface simply exposes a `PropertyChanged` event that will provide access to a string representing the name of the property that changed.
 As this interface can be found in the `System.dll` it is available for all .NET code from .NET 2.0 up.
@@ -200,7 +200,7 @@ Output:
 
 The full [LinqPad](http://www.linqpad.net) sample in available as [INotifyPropertyChangedSample.linq](INotifyPropertyChangedSample.linq)
 
-##DependencyProperties
+## DependencyProperties
 In WPF (and derivative frameworks like Silverlight, Windows Phone, Windows Store Apps...), `DependencyObjects` and their `DependencyProperty` members make up a key part of the standardized framework for bring together features for data-binding, animation, styles, property value inheritance and property change notification.
 Here we will focus on how to get a property changed sequence from a `DependencyProperty`.
 
@@ -325,7 +325,7 @@ Output:
 
 The full [LinqPad](http://www.linqpad.net) sample in available as [DependencyPropertyChangedSample.linq](DependencyPropertyChangedSample.linq)
 
-##PropertyChanged Convention
+## PropertyChanged Convention
 An alternative way to notify consumers of a property change is to the use convention of have a (PropertyName)Changed event.
 In this example we have a `Name` property with a matching `NameChanged` event.
 
@@ -498,8 +498,8 @@ Replacing the Expression with basic `string` and `Func<TSource,TProperty>` carve
 
 Micro-benchmarks should be taking with a grain of salt, and you should back up any assumptions about the performance of your code with higher level benchmarks.
 
-##Library implementations
-###Rxx
+## Library implementations
+### Rxx
 
 The wise contributors to the [Rxx](http://Rxx.codeplex.com) project have noticed that all of the sample above can actually be rolled into a single extension method.
 You see the last example will not only cleverly figure out the property changed convention, but will also identify _DependencyProperties_ and `INotifyPropertyChange` implementations too.
@@ -507,11 +507,11 @@ There have been further improvements to cater for quirks in the `TypeDescriptor`
 
 [FromPropertyChangedPattern.cs in Rxx](http://rxx.codeplex.com/SourceControl/changeset/view/71357#1142225)
 
-###ReactiveUI
+### ReactiveUI
 ReactiveUI is a popular GUI framework with Rx at its heart.
 It can be useful for building cross platform products with Xamarin (WPF, iOS, Android) as you adopt its change notification and command system, and they will apply platform specific binding.
 
-##More links
+## More links
 Allan Lindqvist's post [Observable from any property in a INotifyPropertyChanged class](http://social.msdn.microsoft.com/Forums/en-US/rx/thread/36bf6ecb-70ea-4be3-aa35-b9a9cbc9a078) on the Rx MSDN Forums.
 
 Richard Szalay's post [GetPropertyValues: a strongly typed reactive wrapper around INotifyPropertyChanged](http://social.msdn.microsoft.com/Forums/en-US/rx/thread/2fc8ab3c-28ed-45a9-a96f-59133a3d103c) on the Rx MSDN Forums.
