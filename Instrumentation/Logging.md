@@ -1,4 +1,4 @@
-#Logging
+# Logging
 
 Logging of observable sequences is made easy with the `Do` operator.
 However we can further generalise it create a fully featured extension method for logging.
