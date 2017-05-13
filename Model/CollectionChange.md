@@ -1,4 +1,4 @@
-#Collection changes
+# Collection changes
 
 The .NET framework provides a standard interface for publishing changes to a collection.
 As in the [Observing Property changes sample](PropertyChange.md), the `INotifyCollectionChanged` interface can be found in the _System.dll_, so is available to all .NET software not just GUI applications.
@@ -256,7 +256,7 @@ private static IObservable<CollectionChangedData<TItem>> CollectionChangesImp<TC
 ```
 
 
-##Collection's Items change notification
+## Collection's Items change notification
 An interesting progression from just getting notifications when a collection changes, is to get notified when a property on an item in that collection changes.
 For example if we have a collection of `Person` objects, we may want to be notified if one of those objects had their `Name` property changed.
 For this we can leverage the patterns we had in the [Property Changed sample](PropertyChanged.md).
