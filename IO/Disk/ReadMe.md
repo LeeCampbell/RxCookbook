@@ -1,4 +1,4 @@
-#Disk I/O with Rx
+# Disk I/O with Rx
 Reading and writing to the disk has for a long time on many platforms been faked to look like a synchronous activity.
 As the disk is a separate system to the CPU, it can more naturally be thought of as a candidate for an asynchronous system.
 Writes are really posts of data, and reads are really requests for data.
@@ -11,7 +11,7 @@ In .NET this asynchronous approach is natively provided with the `Task` type and
 These are very effective, however only provide either a long pause while all data is sent or received, or only provide a chunk of data quickly.
 Rx can provided a much needed bridge for streaming data to and from the disk.
 
-##Using async/await chunking with Rx
+## Using async/await chunking with Rx
 A common road block when using Rx to perform I/O is the impedance mismatch between the pulling nature of reading from a disk and the push nature of Rx.
 While you can use asynchronous read methods, these still need to be invoked for each batch of data, creating a pooling loop.
 
