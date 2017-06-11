@@ -322,7 +322,7 @@ public class MyTests : ReactiveTest
 	}
 }
 
-public static class TemoralExtensions
+public static class TemporalExtensions
 {
 	public static long Seconds(this int seconds)
 	{
