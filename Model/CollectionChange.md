@@ -259,7 +259,7 @@ private static IObservable<CollectionChangedData<TItem>> CollectionChangesImp<TC
 ## Collection's Items change notification
 An interesting progression from just getting notifications when a collection changes, is to get notified when a property on an item in that collection changes.
 For example if we have a collection of `Person` objects, we may want to be notified if one of those objects had their `Name` property changed.
-For this we can leverage the patterns we had in the [Property Changed sample](PropertyChanged.md).
+For this we can leverage the patterns we had in the [Property Changed sample](PropertyChange.md).
 
 ```csharp
 public static IObservable<CollectionChangedData<TItem>> CollectionItemsChange<TItem, TProperty>(
